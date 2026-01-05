@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"  // Changed to sqlite for local testing as per .env
+}
+
+model Study {
+  id          String       @id @default(cuid())
+  modality    String
+  studyDate   DateTime?
+  bodyRegion  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  files       StudyFile[]
+  reviews     StudyReview[]
+}
+
+model StudyFile {
+  id               String         @id @default(cuid())
+  study            Study          @relation(fields: [studyId], references: [id])
+  studyId          String
+  fileType         String
+  originalFilename String
+  storagePath      String
+  uploadedAt       DateTime       @default(now())
+  reviews          StudyReview[]
+}
+
+model StudyReview {
+  id           String     @id @default(cuid())
+  study        Study      @relation(fields: [studyId], references: [id])
+  studyId      String
+  authorType   String
+  authorName   String?
+  dateWritten  DateTime?
+  sourceType   String
+  contentText  String?
+  file         StudyFile? @relation(fields: [fileId], references: [id])
+  fileId       String?
+  createdAt    DateTime   @default(now())
+}
