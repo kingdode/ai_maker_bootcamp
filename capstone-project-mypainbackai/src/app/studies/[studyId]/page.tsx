@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 
 // Type definition for a StudyFile (matches what the API returns)
 interface StudyFile {
@@ -16,9 +16,9 @@ interface StudyFile {
 export default function StudyDetailPage({
   params,
 }: {
-  params: { studyId: string };
+  params: Promise<{ studyId: string }>;
 }) {
-  const studyId = params.studyId;
+  const { studyId } = use(params);
 
   // State to hold the list of files
   const [files, setFiles] = useState<StudyFile[]>([]);
@@ -174,4 +174,3 @@ export default function StudyDetailPage({
     </div>
   );
 }
-

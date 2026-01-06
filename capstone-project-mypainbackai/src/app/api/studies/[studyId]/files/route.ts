@@ -7,10 +7,10 @@ import { prisma } from "@/lib/prisma";
 // Returns all files attached to a specific study
 export async function GET(
   request: Request,
-  { params }: { params: { studyId: string } }
+  { params }: { params: Promise<{ studyId: string }> }
 ) {
   try {
-    const { studyId } = params;
+    const { studyId } = await params;
 
     // Query the database for all files linked to this study
     const files = await prisma.studyFile.findMany({
@@ -37,10 +37,10 @@ export async function GET(
 // Uploads a single file and attaches it to a study
 export async function POST(
   request: Request,
-  { params }: { params: { studyId: string } }
+  { params }: { params: Promise<{ studyId: string }> }
 ) {
   try {
-    const { studyId } = params;
+    const { studyId } = await params;
 
     // First, verify the study exists in the database
     const study = await prisma.study.findUnique({
