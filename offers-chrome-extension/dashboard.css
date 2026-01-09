@@ -398,3 +398,30 @@ body {
   }
 }
 
+/* Stack Badge Styles */
+.stack-cell {
+  text-align: center;
+}
+
+.stack-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stack-badge.stackable {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+}
+
+.stack-badge.not-stackable {
+  color: #999;
+}
+
+/* Highlight row on hover for stackable offers */
+.offers-table tbody tr:has(.stack-badge.stackable):hover {
+  background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
+}
+

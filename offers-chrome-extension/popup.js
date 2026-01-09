@@ -31,6 +31,18 @@
   const cohortSelect = document.getElementById('cohortSelect');
   const newCohortButton = document.getElementById('newCohortButton');
   const cohortInfo = document.getElementById('cohortInfo');
+  
+  // Stack banner elements
+  const stackBanner = document.getElementById('stackBanner');
+  const stackMerchant = document.getElementById('stackMerchant');
+  const confidenceValue = document.getElementById('confidenceValue');
+  const stackCardOffer = document.getElementById('stackCardOffer');
+  const cardOfferValue = document.getElementById('cardOfferValue');
+  const stackTotal = document.getElementById('stackTotal');
+  const stackTotalValue = document.getElementById('stackTotalValue');
+  const stackPortals = document.getElementById('stackPortals');
+  const portalLinks = document.getElementById('portalLinks');
+  const stackableCount = document.getElementById('stackableCount');
 
   // State
   let allOffers = [];
@@ -681,6 +693,171 @@
   }
 
   /**
+   * Portal information for display
+   */
+  const PORTAL_INFO = {
+    rakuten: { name: 'Rakuten', url: 'https://www.rakuten.com' },
+    topcashback: { name: 'TopCashback', url: 'https://www.topcashback.com' },
+    honey: { name: 'Honey', url: 'https://www.joinhoney.com' },
+    retailmenot: { name: 'RetailMeNot', url: 'https://www.retailmenot.com' },
+    befrugal: { name: 'BeFrugal', url: 'https://www.befrugal.com' },
+    mrrebates: { name: 'Mr. Rebates', url: 'https://www.mrrebates.com' }
+  };
+
+  /**
+   * Check affiliate confidence for current merchant
+   */
+  async function checkAffiliateConfidence() {
+    if (!stackBanner) return;
+    
+    try {
+      const tab = await getCurrentTab();
+      if (!tab || !tab.url) return;
+      
+      // Skip Chase/Amex pages (they're for card offers)
+      const url = tab.url.toLowerCase();
+      if (url.includes('chase.com') || url.includes('americanexpress.com')) {
+        stackBanner.style.display = 'none';
+        return;
+      }
+      
+      // Skip non-http pages
+      if (!url.startsWith('http')) {
+        stackBanner.style.display = 'none';
+        return;
+      }
+      
+      // Extract domain
+      const urlObj = new URL(tab.url);
+      const domain = urlObj.hostname.replace(/^www\./, '');
+      
+      console.log('[DealStackr] Checking affiliate confidence for:', domain);
+      
+      // Show banner with loading state
+      stackBanner.style.display = 'block';
+      stackMerchant.textContent = domain;
+      confidenceValue.textContent = 'Checking...';
+      confidenceValue.className = 'confidence-value';
+      stackCardOffer.style.display = 'none';
+      stackTotal.style.display = 'none';
+      stackPortals.style.display = 'none';
+      
+      // Get affiliate confidence from background
+      const response = await chrome.runtime.sendMessage({
+        action: 'getAffiliateConfidence',
+        domain: domain
+      });
+      
+      if (response && response.success) {
+        updateStackBanner(response);
+      } else {
+        confidenceValue.textContent = 'No data';
+        confidenceValue.className = 'confidence-value confidence-none';
+      }
+      
+    } catch (error) {
+      console.warn('[DealStackr] Error checking affiliate confidence:', error);
+      if (stackBanner) {
+        stackBanner.style.display = 'none';
+      }
+    }
+  }
+
+  /**
+   * Update the stack banner with affiliate data
+   * @param {Object} data - Response from background worker
+   */
+  function updateStackBanner(data) {
+    if (!stackBanner || !data) return;
+    
+    const affiliateData = data.affiliateData || {};
+    const confidence = affiliateData.confidence || {};
+    const cardOffers = data.cardOffers || [];
+    const stackValue = data.stackValue || {};
+    
+    // Update merchant name
+    if (affiliateData.merchantName) {
+      stackMerchant.textContent = affiliateData.merchantName;
+    }
+    
+    // Update confidence display
+    const level = confidence.confidenceLevel || 'none';
+    confidenceValue.textContent = confidence.confidenceLabel || 'No data';
+    confidenceValue.className = `confidence-value confidence-${level}`;
+    
+    // Show card offer if available
+    if (cardOffers.length > 0) {
+      const offer = cardOffers[0];
+      cardOfferValue.textContent = `${offer.offer_value} (${offer.card_type || offer.issuer})`;
+      stackCardOffer.style.display = 'flex';
+    } else {
+      stackCardOffer.style.display = 'none';
+    }
+    
+    // Show stack total if stackable
+    if (stackValue.isStackable && stackValue.estimatedStack) {
+      stackTotalValue.textContent = stackValue.estimatedStack;
+      stackTotal.style.display = 'flex';
+    } else {
+      stackTotal.style.display = 'none';
+    }
+    
+    // Show portal links if high/medium confidence
+    const portals = confidence.portals || [];
+    if (portals.length > 0 && (level === 'high' || level === 'medium')) {
+      portalLinks.innerHTML = '';
+      portals.slice(0, 3).forEach(portalId => {
+        const portal = PORTAL_INFO[portalId];
+        if (portal) {
+          const link = document.createElement('a');
+          link.href = portal.url;
+          link.target = '_blank';
+          link.className = 'portal-link';
+          link.textContent = portal.name;
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: portal.url });
+          });
+          portalLinks.appendChild(link);
+        }
+      });
+      stackPortals.style.display = 'flex';
+    } else {
+      stackPortals.style.display = 'none';
+    }
+    
+    // If no useful data, hide the banner
+    if (level === 'none' && cardOffers.length === 0) {
+      stackBanner.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update stackable count in summary
+   */
+  async function updateStackableCount() {
+    if (!stackableCount) return;
+    
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'getStackableOffers'
+      });
+      
+      if (response && response.success) {
+        const count = response.totalStackable || 0;
+        if (count > 0) {
+          stackableCount.textContent = `Stackable: ${count}`;
+          stackableCount.style.display = 'inline';
+        } else {
+          stackableCount.style.display = 'none';
+        }
+      }
+    } catch (error) {
+      console.warn('[DealStackr] Error updating stackable count:', error);
+    }
+  }
+
+  /**
    * Open dashboard in a new tab
    */
   async function openDashboard() {
@@ -788,6 +965,16 @@
       if (sortBy) sortBy.addEventListener('change', applyFiltersAndRender);
       if (cohortSelect) cohortSelect.addEventListener('change', handleCohortChange);
       if (newCohortButton) newCohortButton.addEventListener('click', handleNewCohortClick);
+      
+      // Check affiliate confidence for current page (if on a merchant site)
+      checkAffiliateConfidence().catch(err => {
+        console.warn('[DealStackr] Error checking affiliate:', err);
+      });
+      
+      // Update stackable count in summary
+      updateStackableCount().catch(err => {
+        console.warn('[DealStackr] Error updating stackable count:', err);
+      });
       
       console.log('[DealStackr] Popup initialized successfully');
     } catch (error) {

@@ -22,6 +22,7 @@
   const issuerFilter = document.getElementById('issuerFilter');
   const cardFilter = document.getElementById('cardFilter');
   const channelFilter = document.getElementById('channelFilter');
+  const stackableFilter = document.getElementById('stackableFilter');
   const sortBy = document.getElementById('sortBy');
 
   // State
@@ -29,6 +30,7 @@
   let filteredOffers = [];
   let sortField = 'last_scanned_at';
   let sortDirection = 'desc';
+  let stackableCount = 0;
 
   /**
    * Load all offers from chrome.storage.local
@@ -94,6 +96,46 @@
         console.log(`[Dealstackr Dashboard] Deduplicated ${beforeDedup} offers to ${afterDedup} unique offers (removed ${beforeDedup - afterDedup} duplicates)`);
       } else {
         console.log('[Dealstackr Dashboard] Loaded', allOffers.length, 'offers (no duplicates found)');
+      }
+
+      // Fetch stackable data from background worker
+      try {
+        const stackableResponse = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({ action: 'getStackableOffers' }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.warn('[Dealstackr Dashboard] Error fetching stackable data:', chrome.runtime.lastError);
+              resolve(null);
+            } else {
+              resolve(response);
+            }
+          });
+        });
+
+        if (stackableResponse && stackableResponse.success && stackableResponse.offers) {
+          // Merge stackable info into our offers
+          const stackableMap = new Map();
+          stackableResponse.offers.forEach(offer => {
+            const key = `${(offer.merchant_name || offer.merchant || '').toLowerCase()}|${offer.offer_value}`;
+            stackableMap.set(key, offer);
+          });
+
+          allOffers = allOffers.map(offer => {
+            const key = `${offer.merchant.toLowerCase()}|${offer.offer_value}`;
+            const stackableInfo = stackableMap.get(key);
+            return {
+              ...offer,
+              stackable: stackableInfo?.stackable || false,
+              affiliateConfidence: stackableInfo?.affiliateConfidence || 'none',
+              affiliatePortals: stackableInfo?.affiliatePortals || [],
+              typicalRate: stackableInfo?.typicalRate || null
+            };
+          });
+
+          stackableCount = allOffers.filter(o => o.stackable).length;
+          console.log('[Dealstackr Dashboard] Found', stackableCount, 'stackable offers');
+        }
+      } catch (error) {
+        console.warn('[Dealstackr Dashboard] Error enriching with stackable data:', error);
       }
 
       // Check for partial data (offers missing key fields)
@@ -240,6 +282,16 @@
       filteredOffers = filteredOffers.filter(offer => offer.channel === channelValue);
     }
 
+    // Filter by stackable
+    if (stackableFilter) {
+      const stackableValue = stackableFilter.value;
+      if (stackableValue === 'stackable') {
+        filteredOffers = filteredOffers.filter(offer => offer.stackable === true);
+      } else if (stackableValue === 'not-stackable') {
+        filteredOffers = filteredOffers.filter(offer => offer.stackable !== true);
+      }
+    }
+
     return filteredOffers;
   }
 
@@ -280,6 +332,15 @@
           const aDate = new Date(a.last_scanned_at);
           const bDate = new Date(b.last_scanned_at);
           return bDate - aDate; // Newest first
+        });
+        break;
+
+      case 'stackable':
+        sorted.sort((a, b) => {
+          // Stackable offers first
+          if (a.stackable && !b.stackable) return -1;
+          if (!a.stackable && b.stackable) return 1;
+          return 0;
         });
         break;
 
@@ -360,6 +421,19 @@
       channelCell.className = 'channel-cell';
       channelCell.textContent = formatChannel(offer.channel);
       row.appendChild(channelCell);
+
+      // Stackable cell
+      const stackCell = document.createElement('td');
+      stackCell.className = 'stack-cell';
+      if (offer.stackable) {
+        stackCell.innerHTML = '<span class="stack-badge stackable">💰 Stackable</span>';
+        if (offer.typicalRate) {
+          stackCell.title = `Typical cashback: ${offer.typicalRate}`;
+        }
+      } else {
+        stackCell.innerHTML = '<span class="stack-badge not-stackable">—</span>';
+      }
+      row.appendChild(stackCell);
 
       // Last scanned cell
       const scannedCell = document.createElement('td');
@@ -475,6 +549,9 @@
       issuerFilter.addEventListener('change', applyFiltersAndSort);
       cardFilter.addEventListener('change', applyFiltersAndSort);
       channelFilter.addEventListener('change', applyFiltersAndSort);
+      if (stackableFilter) {
+        stackableFilter.addEventListener('change', applyFiltersAndSort);
+      }
       sortBy.addEventListener('change', (e) => {
         const value = e.target.value;
         if (value === 'value-desc') {

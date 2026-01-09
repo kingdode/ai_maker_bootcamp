@@ -17,11 +17,38 @@
       </div>
     </header>
 
+    <!-- Stack Potential Banner (shown on merchant sites) -->
+    <div id="stackBanner" class="stack-banner" style="display: none;">
+      <div class="stack-header">
+        <span class="stack-icon">💰</span>
+        <span id="stackMerchant" class="stack-merchant">Merchant</span>
+      </div>
+      <div class="stack-content">
+        <div id="stackConfidence" class="stack-confidence">
+          <span class="confidence-label">Cashback:</span>
+          <span id="confidenceValue" class="confidence-value">Checking...</span>
+        </div>
+        <div id="stackCardOffer" class="stack-card-offer" style="display: none;">
+          <span class="card-offer-label">Card offer:</span>
+          <span id="cardOfferValue" class="card-offer-value"></span>
+        </div>
+        <div id="stackTotal" class="stack-total" style="display: none;">
+          <span class="stack-total-label">Potential stack:</span>
+          <span id="stackTotalValue" class="stack-total-value"></span>
+        </div>
+      </div>
+      <div id="stackPortals" class="stack-portals" style="display: none;">
+        <span class="portals-label">Check:</span>
+        <div id="portalLinks" class="portal-links"></div>
+      </div>
+    </div>
+
     <!-- Summary Row -->
     <div id="summaryRow" class="summary-row" style="display: none;">
       <span id="totalOffers">Total Offers: 0</span>
       <span id="chaseCount">Chase: 0</span>
       <span id="amexCount">Amex: 0</span>
+      <span id="stackableCount" class="stackable-count" style="display: none;">Stackable: 0</span>
       <div class="summary-actions">
         <span id="cohortInfo" class="cohort-info"></span>
         <button id="exportButton" class="export-button">Export Cohort</button>

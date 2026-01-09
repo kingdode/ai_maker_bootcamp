@@ -57,6 +57,15 @@
             <option value="unknown">Unknown</option>
           </select>
         </div>
+
+        <div class="filter-group">
+          <label for="stackableFilter">Stackable:</label>
+          <select id="stackableFilter" class="filter-select">
+            <option value="all">All</option>
+            <option value="stackable">Stackable Only</option>
+            <option value="not-stackable">Not Stackable</option>
+          </select>
+        </div>
       </div>
 
       <div class="sort-section">
@@ -116,6 +125,10 @@
               </th>
               <th class="sortable" data-sort="channel">
                 Channel
+                <span class="sort-indicator"></span>
+              </th>
+              <th class="sortable" data-sort="stackable">
+                Stack
                 <span class="sort-indicator"></span>
               </th>
               <th class="sortable" data-sort="last_scanned_at">

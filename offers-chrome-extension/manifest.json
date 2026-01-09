@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "DealStackr",
-  "version": "1.0.1",
-  "description": "Scan and stack credit card offers from Chase and American Express into one deal file",
+  "version": "1.1.0",
+  "description": "Scan and stack credit card offers from Chase and American Express with cashback portal detection",
   "permissions": [
     "activeTab",
     "storage",
@@ -10,13 +10,16 @@
   ],
   "host_permissions": [
     "https://*.chase.com/*",
-    "https://*.americanexpress.com/*"
+    "https://*.americanexpress.com/*",
+    "https://*/*",
+    "http://*/*"
   ],
   "action": {
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -26,11 +29,25 @@
       ],
       "js": ["contentScript.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["affiliateDetector.js"],
+      "run_at": "document_idle",
+      "exclude_matches": [
+        "https://*.chase.com/*",
+        "https://*.americanexpress.com/*",
+        "https://*.google.com/*",
+        "https://*.bing.com/*",
+        "https://*.facebook.com/*",
+        "https://*.twitter.com/*",
+        "https://*.youtube.com/*"
+      ]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["dashboard.html", "dashboard.css", "dashboard.js"],
+      "resources": ["dashboard.html", "dashboard.css", "dashboard.js", "affiliateData.js"],
       "matches": ["<all_urls>"]
     }
   ]

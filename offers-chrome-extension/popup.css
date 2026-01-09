@@ -37,6 +37,131 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Stack Banner */
+.stack-banner {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.stack-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stack-icon {
+  font-size: 20px;
+}
+
+.stack-merchant {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.stack-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.stack-confidence,
+.stack-card-offer,
+.stack-total {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confidence-label,
+.card-offer-label,
+.stack-total-label,
+.portals-label {
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.confidence-value,
+.card-offer-value,
+.stack-total-value {
+  font-weight: 600;
+}
+
+.confidence-high {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.confidence-medium {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.confidence-low {
+  opacity: 0.8;
+}
+
+.confidence-none {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.stack-total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.stack-total-value {
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.stack-portals {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.portal-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.portal-link {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.portal-link:hover {
+  background: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.stackable-count {
+  color: #11998e;
+  font-weight: 600;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

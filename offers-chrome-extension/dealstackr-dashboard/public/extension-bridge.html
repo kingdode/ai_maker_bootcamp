@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dealstackr Extension Bridge</title>
+</head>
+<body>
+  <h1>Dealstackr Extension Bridge</h1>
+  <p>This page allows the dashboard to access Chrome extension storage.</p>
+  <p>If you see this page, the bridge is working. You can close this tab.</p>
+  
+  <script>
+    // This script runs in the extension context and can access chrome.storage.local
+    // The dashboard can communicate with this page via postMessage
+    
+    window.addEventListener('message', async (event) => {
+      // Only accept messages from the dashboard origin
+      if (event.data.type === 'GET_OFFERS') {
+        try {
+          // Read from chrome.storage.local
+          chrome.storage.local.get(['dealCohorts', 'allDeals', 'currentCohort'], (items) => {
+            // Send data back to dashboard
+            window.parent.postMessage({
+              type: 'OFFERS_DATA',
+              data: items
+            }, '*');
+          });
+        } catch (error) {
+          window.parent.postMessage({
+            type: 'OFFERS_ERROR',
+            error: error.message
+          }, '*');
+        }
+      }
+    });
+    
+    // Notify parent that bridge is ready
+    window.parent.postMessage({ type: 'BRIDGE_READY' }, '*');
+  </script>
+</body>
+</html>
+
