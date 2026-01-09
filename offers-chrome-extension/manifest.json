@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "DealStackr",
+  "version": "1.0.1",
+  "description": "Scan and stack credit card offers from Chase and American Express into one deal file",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.chase.com/*",
+    "https://*.americanexpress.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.chase.com/*",
+        "https://*.americanexpress.com/*"
+      ],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["dashboard.html", "dashboard.css", "dashboard.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+
