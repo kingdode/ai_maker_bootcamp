@@ -63,7 +63,7 @@ git push origin main
 
 4. **Configure Root Directory**:
    - Railway will ask for the root directory
-   - **Enter**: `dealstackr-web`
+   - **Enter**: `dealstackr/dealstackr-web`
    - This tells Railway to build from the subfolder
 
 5. **Click**: "Deploy Now"
@@ -318,7 +318,7 @@ Railway Dashboard → Settings → Deploy → Redeploy
 **Solution**: Check Dockerfile path
 ```bash
 Railway Settings → Build → Dockerfile Path: Dockerfile
-Railway Settings → Build → Root Directory: dealstackr-web
+Railway Settings → Build → Root Directory: dealstackr/dealstackr-web
 ```
 
 ### Problem: "Data disappears after deploy"
@@ -423,7 +423,7 @@ Use this checklist to ensure everything is configured:
 - [ ] Code pushed to GitHub
 - [ ] Railway account created
 - [ ] Project created from GitHub repo
-- [ ] Root directory set to `dealstackr-web`
+- [ ] Root directory set to `dealstackr/dealstackr-web`
 - [ ] Dockerfile detected
 - [ ] Environment variables set
 - [ ] Volume created and mounted at `/app/.data`

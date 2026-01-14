@@ -27,7 +27,7 @@ git push origin main
 1. Click: **"New Project"** (purple button)
 2. Select: **"Deploy from GitHub repo"**
 3. Choose: **`kingdode/ai_maker_bootcamp`**
-4. **IMPORTANT**: Set root directory to `dealstackr-web`
+4. **IMPORTANT**: Set root directory to `dealstackr/dealstackr-web`
 5. Click: **"Deploy Now"**
 
 ⏱️ Wait 2-3 minutes for build...
@@ -146,7 +146,7 @@ Every `git push origin main` automatically deploys! 🎉
 
 | Problem | Solution |
 |---------|----------|
-| "Build failed" | Check root directory is `dealstackr-web` |
+| "Build failed" | Check root directory is `dealstackr/dealstackr-web` |
 | "502 Bad Gateway" | Wait 30s, app is starting up |
 | "Data disappeared" | Add volume at `/app/.data` |
 | "API not working" | Check `/api/offers` returns JSON |
@@ -165,7 +165,7 @@ For detailed explanations, troubleshooting, and advanced config:
 
 - [ ] Code pushed to GitHub
 - [ ] Railway project created
-- [ ] Root directory set to `dealstackr-web`
+- [ ] Root directory set to `dealstackr/dealstackr-web`
 - [ ] Volume created for `/app/.data`
 - [ ] Site loads at Railway URL
 - [ ] Admin panel accessible

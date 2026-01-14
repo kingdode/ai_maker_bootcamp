@@ -35,7 +35,7 @@ git push origin main
 3. Choose: **`kingdode/ai_maker_bootcamp`**
 4. **⚠️ CRITICAL**: Configure root directory
    ```
-   Root Directory: dealstackr-web
+   Root Directory: dealstackr/dealstackr-web
    ```
    *(Railway will ask for this during setup)*
 5. Click: **"Deploy Now"**
@@ -142,7 +142,7 @@ https://your-railway-url.up.railway.app
 
 - [ ] Code pushed to GitHub
 - [ ] Railway project created
-- [ ] Root directory set to `dealstackr-web`
+- [ ] Root directory set to `dealstackr/dealstackr-web`
 - [ ] Build completed successfully
 - [ ] Volume mounted at `/app/.data`
 - [ ] Environment variables set
@@ -252,7 +252,7 @@ Deploys New Container
 ### Build Failed?
 ```
 Settings → Build
-- Check Root Directory: dealstackr-web
+- Check Root Directory: dealstackr/dealstackr-web
 - Check Dockerfile Path: Dockerfile
 ```
 
