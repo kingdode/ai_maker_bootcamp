@@ -1399,13 +1399,31 @@
       reportData = { type: reportData };
     }
     
+    // Extract merchant name from page title
+    const getMerchantName = () => {
+      let title = document.title || '';
+      // Remove common suffixes
+      title = title.replace(/\s*[-–—|:]\s*(Official Site|Home|Shop|Store|Online|Website).*$/i, '');
+      title = title.replace(/\s*[-–—|:].*$/, ''); // Take first part before separator
+      title = title.trim();
+      // If title is too long, try to extract from domain
+      if (title.length > 50 || !title) {
+        const domain = getDomain();
+        title = domain.replace(/\.(com|net|org|co\.uk|io)$/, '').replace(/^www\./, '');
+        title = title.charAt(0).toUpperCase() + title.slice(1);
+      }
+      return title;
+    };
+
     const confirmation = {
       domain: getDomain(),
+      merchant: getMerchantName(), // Add merchant name for better matching
       type: reportData.type, // 'cashback', 'promo', 'nothing'
       portal: reportData.portal || null, // 'rakuten', 'honey', 'topcashback', 'other'
       rate: reportData.rate || null, // numeric rate (e.g., 7 for 7%)
       rateDisplay: reportData.rateDisplay || null, // formatted string (e.g., "7%")
       fixedAmount: reportData.fixedAmount || null, // for fixed promos like "$10 off"
+      cashbackType: reportData.cashbackType || null, // 'percent' or 'fixed'
       confirmedAt: new Date().toISOString(),
       url: window.location.href,
       // Metadata for aggregation
@@ -1544,6 +1562,416 @@
     console.log('[DealStackr] Manually showing widget');
     createConfirmationWidget();
   };
+
+  /**
+   * Check for saved card offers for the current merchant and show reminder banner
+   */
+  async function checkForSavedOffers() {
+    const currentDomain = getDomain();
+    const currentHostname = window.location.hostname.toLowerCase();
+    
+    console.log('[DealStackr] Checking for saved offers on:', currentDomain, currentHostname);
+    
+    try {
+      // Get saved offers AND crowdsourced data from chrome.storage.local
+      const result = await new Promise((resolve, reject) => {
+        if (!chrome?.storage?.local) {
+          reject(new Error('Chrome storage API not available'));
+          return;
+        }
+        chrome.storage.local.get(['dealCohorts', 'allDeals', 'crowdsourcedDeals'], (items) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve(items);
+          }
+        });
+      });
+      
+      // FIRST CHECK: Does this domain have crowdsourced (user-generated) data?
+      const crowdsourcedDeals = result.crowdsourcedDeals || {};
+      const hasCrowdsourcedData = crowdsourcedDeals[currentDomain] && 
+                                   crowdsourcedDeals[currentDomain].totalReports > 0;
+      
+      if (!hasCrowdsourcedData) {
+        console.log('[DealStackr] No user-generated reports for this domain, not showing banner');
+        return;
+      }
+      
+      console.log('[DealStackr] Found', crowdsourcedDeals[currentDomain].totalReports, 'user report(s) for', currentDomain);
+      
+      // Collect all offers from storage
+      let allOffers = [];
+      
+      if (result.dealCohorts && typeof result.dealCohorts === 'object') {
+        Object.values(result.dealCohorts).forEach(cohort => {
+          if (Array.isArray(cohort.offers)) {
+            allOffers = allOffers.concat(cohort.offers);
+          }
+        });
+      }
+      
+      if (Array.isArray(result.allDeals)) {
+        allOffers = allOffers.concat(result.allDeals);
+      }
+      
+      if (allOffers.length === 0) {
+        console.log('[DealStackr] No saved offers found');
+        return;
+      }
+      
+      console.log('[DealStackr] Found', allOffers.length, 'total offers');
+      
+      // Find offers matching the current domain/merchant
+      const matchingOffers = findMatchingOffers(allOffers, currentDomain, currentHostname);
+      
+      if (matchingOffers.length > 0) {
+        console.log('[DealStackr] Found', matchingOffers.length, 'matching offers for this merchant with user reports');
+        showOfferReminderBanner(matchingOffers, crowdsourcedDeals[currentDomain]);
+      } else {
+        console.log('[DealStackr] No matching offers for this merchant');
+      }
+    } catch (error) {
+      console.log('[DealStackr] Error checking for saved offers:', error);
+    }
+  }
+  
+  /**
+   * Find offers that match the current domain/hostname
+   * Uses strict matching to avoid false positives (e.g., x.com matching Dropbox)
+   */
+  function findMatchingOffers(offers, currentDomain, currentHostname) {
+    const matching = [];
+    
+    // Extract brand name from domain (e.g., "mackage" from "mackage.com")
+    const domainParts = currentDomain.split('.');
+    const brandFromDomain = domainParts[0].toLowerCase();
+    
+    // Also check for subdomains (e.g., "www.mackage.com" -> "mackage")
+    const hostnameParts = currentHostname.replace('www.', '').split('.');
+    const brandFromHostname = hostnameParts[0].toLowerCase();
+    
+    // Skip very short domain names (too likely to cause false positives)
+    // Examples: x.com, t.co, fb.com, go.com
+    const MIN_BRAND_LENGTH = 4;
+    if (brandFromDomain.length < MIN_BRAND_LENGTH && brandFromHostname.length < MIN_BRAND_LENGTH) {
+      console.log('[DealStackr] Domain too short for reliable matching:', brandFromDomain);
+      return [];
+    }
+    
+    // Use the longer brand name for matching
+    const brandName = brandFromDomain.length >= brandFromHostname.length ? brandFromDomain : brandFromHostname;
+    
+    // Skip generic domains that would match too many things
+    const SKIP_DOMAINS = ['www', 'shop', 'store', 'buy', 'app', 'web', 'go', 'get', 'my', 'the'];
+    if (SKIP_DOMAINS.includes(brandName)) {
+      console.log('[DealStackr] Generic domain, skipping matching:', brandName);
+      return [];
+    }
+    
+    for (const offer of offers) {
+      const merchantName = (offer.merchant_name || offer.merchant || '').toLowerCase().trim();
+      
+      if (!merchantName || merchantName.length < 2) continue;
+      
+      // Normalize merchant name for comparison
+      const merchantNormalized = merchantName.replace(/[^a-z0-9]/g, '');
+      const brandNormalized = brandName.replace(/[^a-z0-9]/g, '');
+      
+      // Strategy 1: Exact match (domain equals merchant name)
+      if (merchantNormalized === brandNormalized) {
+        matching.push(offer);
+        continue;
+      }
+      
+      // Strategy 2: Brand is contained within merchant name at word boundary
+      // e.g., "mackage" matches "Mackage Store" but not "smackage"
+      const merchantWords = merchantName.split(/\s+/);
+      const brandMatchesWord = merchantWords.some(word => {
+        const wordNormalized = word.replace(/[^a-z0-9]/g, '');
+        return wordNormalized === brandNormalized || 
+               (wordNormalized.length >= 4 && brandNormalized.length >= 4 && wordNormalized.startsWith(brandNormalized));
+      });
+      
+      if (brandMatchesWord) {
+        matching.push(offer);
+        continue;
+      }
+      
+      // Strategy 3: First word of merchant name matches brand
+      const firstMerchantWord = merchantWords[0]?.replace(/[^a-z0-9]/g, '') || '';
+      if (firstMerchantWord.length >= 4 && brandNormalized.length >= 4) {
+        if (firstMerchantWord === brandNormalized || 
+            firstMerchantWord.startsWith(brandNormalized) ||
+            brandNormalized.startsWith(firstMerchantWord)) {
+          matching.push(offer);
+          continue;
+        }
+      }
+      
+      // Strategy 4: Merchant name (single word) is contained within brand
+      // e.g., domain "nordstromrack.com" should match merchant "Nordstrom"
+      if (merchantWords.length === 1 && merchantNormalized.length >= 5) {
+        if (brandNormalized.includes(merchantNormalized) || merchantNormalized.includes(brandNormalized)) {
+          matching.push(offer);
+          continue;
+        }
+      }
+    }
+    
+    // Deduplicate by offer value
+    const seen = new Set();
+    return matching.filter(offer => {
+      const key = `${offer.merchant_name || offer.merchant}-${offer.offer_value || offer.offer}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+  
+  /**
+   * Show a reminder banner for saved offers (only when user reports exist)
+   * @param {Array} offers - Matching offers for this merchant
+   * @param {Object} crowdsourcedData - User-generated report data for this domain
+   */
+  function showOfferReminderBanner(offers, crowdsourcedData) {
+    // Don't show if banner already exists
+    if (document.getElementById('dealstackr-offer-banner')) {
+      return;
+    }
+    
+    // Check if user dismissed banner recently (last 24 hours for this domain)
+    const dismissKey = `ds_banner_dismissed_${getDomain()}`;
+    const dismissedAt = localStorage.getItem(dismissKey);
+    if (dismissedAt && Date.now() - parseInt(dismissedAt) < 24 * 60 * 60 * 1000) {
+      console.log('[DealStackr] Banner was dismissed recently, not showing');
+      return;
+    }
+    
+    const bestOffer = offers[0]; // Show the first/best offer
+    const offerValue = bestOffer.offer_value || bestOffer.offer || '';
+    const issuer = (bestOffer.issuer || 'Card').replace(/^./, c => c.toUpperCase());
+    const merchantName = bestOffer.merchant_name || bestOffer.merchant || 'this merchant';
+    
+    // Extract crowdsourced info
+    const userReportCount = crowdsourcedData?.totalReports || 0;
+    const cashbackInfo = crowdsourcedData?.aggregated?.cashback;
+    const promoInfo = crowdsourcedData?.aggregated?.promo;
+    
+    // Create banner element
+    const banner = document.createElement('div');
+    banner.id = 'dealstackr-offer-banner';
+    banner.innerHTML = `
+      <style>
+        #dealstackr-offer-banner {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 2147483647;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          animation: ds-banner-slide-in 0.4s ease;
+        }
+        @keyframes ds-banner-slide-in {
+          from {
+            opacity: 0;
+            transform: translateX(100px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        #dealstackr-offer-banner * {
+          box-sizing: border-box;
+        }
+        .ds-banner-container {
+          background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+          border-radius: 16px;
+          padding: 16px 20px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+          max-width: 340px;
+          position: relative;
+          overflow: hidden;
+        }
+        .ds-banner-container::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, #10b981, #22d3ee, #818cf8);
+        }
+        .ds-banner-close {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+          font-size: 18px;
+          line-height: 1;
+          padding: 4px 8px;
+          border-radius: 6px;
+          transition: all 0.2s;
+        }
+        .ds-banner-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+        }
+        .ds-banner-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .ds-banner-icon {
+          width: 36px;
+          height: 36px;
+          background: linear-gradient(135deg, #10b981 0%, #22d3ee 100%);
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          flex-shrink: 0;
+        }
+        .ds-banner-title {
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 1.3;
+        }
+        .ds-banner-subtitle {
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 11px;
+          margin-top: 2px;
+        }
+        .ds-banner-offer {
+          background: rgba(16, 185, 129, 0.15);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 10px;
+          padding: 12px 14px;
+          margin-bottom: 12px;
+        }
+        .ds-banner-offer-label {
+          color: #10b981;
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .ds-banner-offer-value {
+          color: white;
+          font-size: 16px;
+          font-weight: 700;
+        }
+        .ds-banner-offer-issuer {
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 11px;
+          margin-top: 4px;
+        }
+        .ds-banner-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .ds-banner-powered {
+          color: rgba(255, 255, 255, 0.4);
+          font-size: 10px;
+        }
+        .ds-banner-count {
+          background: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 10px;
+          padding: 4px 10px;
+          border-radius: 12px;
+        }
+      </style>
+      <div class="ds-banner-container">
+        <button class="ds-banner-close" id="ds-banner-close-btn">×</button>
+        <div class="ds-banner-header">
+          <div class="ds-banner-icon">💰</div>
+          <div>
+            <div class="ds-banner-title">You have a saved offer here!</div>
+            <div class="ds-banner-subtitle">👥 ${userReportCount} user ${userReportCount === 1 ? 'report' : 'reports'} for this merchant</div>
+          </div>
+        </div>
+        <div class="ds-banner-offer">
+          <div class="ds-banner-offer-label">${issuer} Offer</div>
+          <div class="ds-banner-offer-value">${offerValue}</div>
+          <div class="ds-banner-offer-issuer">at ${merchantName}</div>
+        </div>
+        ${cashbackInfo && cashbackInfo.count > 0 ? `
+        <div style="background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(34, 211, 238, 0.2); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;">
+          <div style="color: #22d3ee; font-size: 10px; font-weight: 600; margin-bottom: 2px;">💸 CASHBACK AVAILABLE</div>
+          <div style="color: rgba(255, 255, 255, 0.9); font-size: 12px;">
+            ${cashbackInfo.avgRate ? `${cashbackInfo.avgRate}% back` : cashbackInfo.avgFixedAmount ? `$${cashbackInfo.avgFixedAmount} back` : 'Available'} 
+            ${cashbackInfo.lastPortal ? ` via ${cashbackInfo.lastPortal}` : ''}
+          </div>
+        </div>
+        ` : ''}
+        ${promoInfo && promoInfo.count > 0 && promoInfo.avgRate ? `
+        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;">
+          <div style="color: #a855f7; font-size: 10px; font-weight: 600; margin-bottom: 2px;">🏷️ PROMO CODE</div>
+          <div style="color: rgba(255, 255, 255, 0.9); font-size: 12px;">${promoInfo.avgRate}% off with signup</div>
+        </div>
+        ` : ''}
+        <div class="ds-banner-footer">
+          <span class="ds-banner-powered">DealStackr • Community-verified</span>
+          ${offers.length > 1 ? `<span class="ds-banner-count">+${offers.length - 1} more</span>` : ''}
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(banner);
+    
+    // Add close button handler
+    const closeBtn = document.getElementById('ds-banner-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        banner.style.animation = 'ds-banner-slide-out 0.3s ease forwards';
+        banner.style.setProperty('--slide-out', 'translateX(100px)');
+        // Add slide-out animation
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes ds-banner-slide-out {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(100px); }
+          }
+        `;
+        document.head.appendChild(style);
+        
+        setTimeout(() => {
+          banner.remove();
+          style.remove();
+        }, 300);
+        
+        // Remember dismissal
+        localStorage.setItem(dismissKey, Date.now().toString());
+      });
+    }
+    
+    // Auto-hide after 15 seconds
+    setTimeout(() => {
+      if (document.getElementById('dealstackr-offer-banner')) {
+        const bannerEl = document.getElementById('dealstackr-offer-banner');
+        if (bannerEl) {
+          bannerEl.style.animation = 'ds-banner-slide-out 0.3s ease forwards';
+          setTimeout(() => bannerEl.remove(), 300);
+        }
+      }
+    }, 15000);
+    
+    console.log('[DealStackr] Showing offer reminder banner');
+  }
+  
+  // Check for saved offers after a short delay (let the page load)
+  setTimeout(() => {
+    checkForSavedOffers();
+  }, 2500);
 
 })();
 

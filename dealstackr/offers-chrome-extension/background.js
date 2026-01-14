@@ -193,12 +193,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         if (!crowdsourcedDeals[data.domain]) {
           crowdsourcedDeals[data.domain] = {
-            domain: data.domain, reports: [],
+            domain: data.domain, merchant: data.merchant || null, reports: [],
             aggregated: { cashback: { count: 0, rates: [], avgRate: null, lastPortal: null, lastReportAt: null }, promo: { count: 0, rates: [], avgRate: null, lastOffer: null, lastReportAt: null } },
             lastReportAt: null, totalReports: 0
           };
         }
         
+        if (data.merchant && !crowdsourcedDeals[data.domain].merchant) { crowdsourcedDeals[data.domain].merchant = data.merchant; }
         const domainData = crowdsourcedDeals[data.domain];
         
         if (data.type !== 'nothing') {
