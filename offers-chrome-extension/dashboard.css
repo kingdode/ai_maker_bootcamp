@@ -30,6 +30,11 @@ body {
   color: white;
   padding: 24px 32px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .header-content h1 {
@@ -42,6 +47,33 @@ body {
   font-size: 14px;
   opacity: 0.9;
   margin: 0;
+}
+
+.header-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.nav-link:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Summary Bar */
@@ -344,6 +376,152 @@ body {
   color: #666;
 }
 
+/* Merchant Link Styles */
+.merchant-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.merchant-link:hover {
+  color: #5a6fd6;
+  text-decoration: underline;
+}
+
+.merchant-link:visited {
+  color: #764ba2;
+}
+
+/* Ensure links in table cells are clickable */
+.merchant-cell a {
+  position: relative;
+  z-index: 1;
+}
+
+/* Score Cell Styles */
+.score-cell {
+  min-width: 130px;
+  max-width: 150px;
+}
+
+/* Score Info Icon */
+.score-info-icon {
+  margin-left: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.score-info-icon:hover {
+  opacity: 1;
+}
+
+/* Signup Cell Styles */
+.signup-cell {
+  min-width: 140px;
+}
+
+.signup-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.signup-badge.signup-high {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.signup-badge.signup-rakuten {
+  background: #fce7e7;
+  color: #eb0029;
+  border: 1px solid #eb002933;
+}
+
+.signup-badge.signup-both {
+  background: linear-gradient(135deg, #fce7e7 0%, #dcfce7 100%);
+  color: #374151;
+  border: 1px solid #667eea33;
+  font-size: 11px;
+}
+
+.signup-badge.signup-medium {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.signup-badge.signup-low {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.signup-badge.signup-unknown {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.signup-confirmed-time {
+  display: block;
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+/* Expires Cell Styles */
+.expires-cell {
+  font-size: 13px;
+  min-width: 90px;
+}
+
+.expires-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.expires-badge.expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.expires-badge.expires-soon {
+  background: #fef3c7;
+  color: #92400e;
+  animation: pulse-warning 2s infinite;
+}
+
+.expires-badge.expires-week {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.signup-link {
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .dashboard-header {
@@ -425,3 +603,209 @@ body {
   background: linear-gradient(135deg, rgba(17, 153, 142, 0.1) 0%, rgba(56, 239, 125, 0.1) 100%);
 }
 
+/* Debug Button */
+.debug-button {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.debug-button:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+/* Debug Link in Summary Bar */
+.debug-link {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.debug-link:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #666;
+}
+
+/* Debug Modal */
+.debug-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.debug-modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.debug-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.debug-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  line-height: 1;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.debug-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.debug-section {
+  margin-bottom: 20px;
+}
+
+.debug-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.debug-section pre {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.debug-modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.debug-action-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  color: #333;
+  transition: all 0.2s ease;
+}
+
+.debug-action-button:hover {
+  background: #e0e0e0;
+}
+
+.debug-action-button.danger {
+  background: #fff5f5;
+  border-color: #e74c3c;
+  color: #c0392b;
+}
+
+.debug-action-button.danger:hover {
+  background: #e74c3c;
+  color: white;
+}
+/* Sync to Website Button */
+.sync-web-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+.sync-web-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+}
+
+.sync-web-btn:active {
+  transform: translateY(0);
+}
+
+.sync-web-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.sync-web-btn.syncing {
+  animation: pulse-sync 1s infinite;
+}
+
+@keyframes pulse-sync {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.sync-status {
+  font-size: 11px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.sync-status.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.sync-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}

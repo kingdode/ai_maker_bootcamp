@@ -542,3 +542,4 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { AFFILIATE_MERCHANT_DATA, AFFILIATE_URL_PATTERNS, CASHBACK_PORTALS };
 }
 
+

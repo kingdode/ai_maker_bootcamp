@@ -11,9 +11,12 @@
     <!-- Header -->
     <header class="dashboard-header">
       <div class="header-content">
-        <h1>Dealstackr — My Card Offers</h1>
+        <h1>DealStackr — My Card Offers</h1>
         <p class="subtitle">Consolidated Chase & Amex offers from your cards</p>
       </div>
+      <nav class="header-nav">
+        <a href="dashboard.html" class="nav-link active">My Offers</a>
+      </nav>
     </header>
 
     <!-- Summary Bar -->
@@ -26,6 +29,11 @@
         <span id="amexCount" class="summary-item">Amex: 0</span>
         <span class="separator">•</span>
         <span id="lastScan" class="summary-item">Last scan: —</span>
+        <span class="separator">•</span>
+        <button id="debugBtn" class="debug-link">🔧 Debug</button>
+        <span class="separator">•</span>
+        <button id="syncWebBtn" class="sync-web-btn">🌐 Sync to Website</button>
+        <span id="syncStatus" class="sync-status"></span>
       </div>
     </div>
 
@@ -59,11 +67,12 @@
         </div>
 
         <div class="filter-group">
-          <label for="stackableFilter">Stackable:</label>
-          <select id="stackableFilter" class="filter-select">
+          <label for="signupFilter">Signup Offer:</label>
+          <select id="signupFilter" class="filter-select">
             <option value="all">All</option>
-            <option value="stackable">Stackable Only</option>
-            <option value="not-stackable">Not Stackable</option>
+            <option value="high">Detected</option>
+            <option value="medium">Likely</option>
+            <option value="unknown">Check on site</option>
           </select>
         </div>
       </div>
@@ -71,12 +80,14 @@
       <div class="sort-section">
         <label for="sortBy">Sort by:</label>
         <select id="sortBy" class="sort-select">
+          <option value="deal_score" selected>DealStackr Score</option>
           <option value="merchant">Merchant (A-Z)</option>
           <option value="value-desc">Offer Value (High to Low)</option>
           <option value="issuer">Issuer</option>
           <option value="card_name">Card Name</option>
           <option value="last_scanned_at">Last Scanned (Newest)</option>
         </select>
+        <span class="score-info-icon" id="scoreInfoIcon" title="How scoring works">ℹ️</span>
       </div>
     </div>
 
@@ -94,6 +105,7 @@
         <h2>No Offers Found</h2>
         <p>Scan your Chase or Amex offers to populate Dealstackr.</p>
         <p class="empty-hint">Use the extension popup to scan offers from Chase or Amex websites.</p>
+        <button id="debugStorageBtn" class="debug-button" style="margin-top: 16px;">Show Storage Debug</button>
       </div>
 
       <!-- Partial Data Warning -->
@@ -107,12 +119,16 @@
         <table id="offersTable" class="offers-table">
           <thead>
             <tr>
+              <th class="sortable" data-sort="deal_score">
+                Score
+                <span class="sort-indicator"></span>
+              </th>
               <th class="sortable" data-sort="merchant">
                 Merchant
                 <span class="sort-indicator"></span>
               </th>
               <th class="sortable" data-sort="offer_value">
-                Offer
+                Card Offer
                 <span class="sort-indicator"></span>
               </th>
               <th class="sortable" data-sort="issuer">
@@ -123,12 +139,12 @@
                 Card
                 <span class="sort-indicator"></span>
               </th>
-              <th class="sortable" data-sort="channel">
-                Channel
+              <th class="sortable" data-sort="expires_at">
+                Expires
                 <span class="sort-indicator"></span>
               </th>
-              <th class="sortable" data-sort="stackable">
-                Stack
+              <th class="sortable" data-sort="channel">
+                Channel
                 <span class="sort-indicator"></span>
               </th>
               <th class="sortable" data-sort="last_scanned_at">
@@ -142,9 +158,38 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Debug Modal -->
+      <div id="debugModal" class="debug-modal" style="display: none;">
+        <div class="debug-modal-content">
+          <div class="debug-modal-header">
+            <h3>Storage Debug Info</h3>
+            <button id="closeDebugModal" class="close-button">&times;</button>
+          </div>
+          <div class="debug-modal-body">
+            <div class="debug-section">
+              <h4>Storage Summary</h4>
+              <pre id="debugSummary">Loading...</pre>
+            </div>
+            <div class="debug-section">
+              <h4>Sample Data (first 3 offers)</h4>
+              <pre id="debugSampleData">Loading...</pre>
+            </div>
+            <div class="debug-section">
+              <h4>Cohorts</h4>
+              <pre id="debugCohorts">Loading...</pre>
+            </div>
+          </div>
+          <div class="debug-modal-footer">
+            <button id="refreshDebugBtn" class="debug-action-button">Refresh</button>
+            <button id="clearStorageBtn" class="debug-action-button danger">Clear All Data</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 
+  <script src="offerScoring.js"></script>
   <script src="dashboard.js"></script>
 </body>
 </html>

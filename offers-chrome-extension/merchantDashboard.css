@@ -1,0 +1,552 @@
+/**
+ * Merchant Dashboard Styles for DealStackr
+ * 
+ * Clean, card-based layout for merchant listing
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: #1a1a2e;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+  min-height: 100vh;
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.dashboard-header {
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  color: white;
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-content h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 14px;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+.header-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.nav-link {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.nav-link:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Info Banner */
+.info-banner {
+  background: linear-gradient(135deg, #e8f4fd 0%, #d4e8f7 100%);
+  border-left: 4px solid #3498db;
+  padding: 16px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+}
+
+.info-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.info-text {
+  font-size: 13px;
+  color: #2c3e50;
+  line-height: 1.5;
+}
+
+.info-text strong {
+  color: #1a5276;
+}
+
+/* Extension Status */
+.extension-status {
+  background: #f8f9fa;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 13px;
+}
+
+.extension-status.connected {
+  background: #e8f5e9;
+}
+
+.extension-status.disconnected {
+  background: #fff3e0;
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+.status-text {
+  color: #666;
+}
+
+.extension-status.connected .status-text {
+  color: #2e7d32;
+}
+
+.extension-status.disconnected .status-text {
+  color: #e65100;
+}
+
+/* Controls Bar */
+.controls-bar {
+  background: white;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.search-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #302b63;
+  box-shadow: 0 0 0 3px rgba(48, 43, 99, 0.1);
+}
+
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-section label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.filter-select {
+  padding: 10px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #302b63;
+}
+
+.stats-section {
+  margin-left: auto;
+}
+
+.merchant-count {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+/* Main Content */
+.dashboard-main {
+  flex: 1;
+  padding: 24px;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: #666;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top: 4px solid #302b63;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.empty-state h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Merchant Grid */
+.merchant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* Merchant Card */
+.merchant-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #eee;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.merchant-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: #ddd;
+}
+
+.merchant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.merchant-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.merchant-category {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: #f0f0f0;
+  color: #666;
+}
+
+/* Issuer colors */
+.merchant-category.chase { background: #e3f2fd; color: #1565c0; }
+.merchant-category.amex { background: #e8f5e9; color: #2e7d32; }
+.merchant-category.unknown { background: #f5f5f5; color: #666; }
+
+/* Card Offer Section */
+.card-offer-section {
+  background: linear-gradient(135deg, #e8f4fd 0%, #d4e8f7 100%);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.card-offer-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #1565c0;
+  margin-bottom: 4px;
+}
+
+.card-offer-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0d47a1;
+}
+
+.offer-count {
+  font-size: 11px;
+  color: #1976d2;
+  margin-top: 4px;
+}
+
+/* Signup Status Section */
+.signup-status-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.signup-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.signup-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  flex-shrink: 0;
+}
+
+.status-indicator.pending { background: #ffc107; }
+.status-indicator.detected { background: #4caf50; }
+.status-indicator.not-found { background: #9e9e9e; }
+
+.status-text {
+  font-size: 13px;
+  color: #666;
+}
+
+.no-url-notice {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+.merchant-actions {
+  margin-top: auto;
+}
+
+.visit-button {
+  width: 100%;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #302b63 0%, #24243e 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.visit-button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(48, 43, 99, 0.3);
+}
+
+.visit-button:active {
+  transform: scale(0.98);
+}
+
+.visit-button .icon {
+  font-size: 16px;
+}
+
+/* Recently Checked Section */
+.recently-checked-section {
+  background: white;
+  padding: 24px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.recently-checked-section h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.recently-checked-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.recent-merchant {
+  font-weight: 500;
+  color: #333;
+}
+
+.recent-result {
+  color: #666;
+}
+
+.recent-result.detected {
+  color: #2e7d32;
+}
+
+.recent-time {
+  color: #999;
+  font-size: 12px;
+}
+
+/* Footer */
+.dashboard-footer {
+  background: #f8f9fa;
+  padding: 20px 24px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.footer-note {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-header {
+    padding: 20px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-content h1 {
+    font-size: 22px;
+  }
+
+  .controls-bar {
+    padding: 12px 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-section {
+    width: 100%;
+  }
+
+  .search-input {
+    max-width: none;
+  }
+
+  .filter-section {
+    width: 100%;
+  }
+
+  .filter-select {
+    flex: 1;
+  }
+
+  .stats-section {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .dashboard-main {
+    padding: 16px;
+  }
+
+  .merchant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .info-banner {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+

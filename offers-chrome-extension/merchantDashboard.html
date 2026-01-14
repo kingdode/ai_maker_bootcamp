@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DealStackr — Signup Offers</title>
+  <link rel="stylesheet" href="merchantDashboard.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <h1>DealStackr — Signup Offers</h1>
+        <p class="subtitle">Visit merchant sites to check for signup discounts</p>
+      </div>
+      <nav class="header-nav">
+        <a href="dashboard.html" class="nav-link">Card Offers</a>
+        <a href="merchantDashboard.html" class="nav-link active">Signup Offers</a>
+      </nav>
+    </header>
+
+    <!-- Info Banner -->
+    <div class="info-banner">
+      <span class="info-icon">💡</span>
+      <div class="info-text">
+        <strong>Stack your savings:</strong> These merchants have card offers from Chase or Amex. 
+        Visit their site to check for signup discounts you can stack on top of your card offer.
+      </div>
+    </div>
+
+    <!-- Extension Status -->
+    <div id="extensionStatus" class="extension-status">
+      <span id="statusIcon" class="status-icon">⏳</span>
+      <span id="statusText" class="status-text">Checking extension...</span>
+    </div>
+
+    <!-- Filters -->
+    <div class="controls-bar">
+      <div class="search-section">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search merchants...">
+      </div>
+      <div class="filter-section">
+        <label for="categoryFilter">Category:</label>
+        <select id="categoryFilter" class="filter-select">
+          <option value="all">All Categories</option>
+        </select>
+      </div>
+      <div class="stats-section">
+        <span id="merchantCount" class="merchant-count">0 merchants</span>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+      <!-- Loading State -->
+      <div id="loadingState" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading merchants...</p>
+      </div>
+
+      <!-- Merchant Grid -->
+      <div id="merchantGrid" class="merchant-grid" style="display: none;">
+        <!-- Merchants will be rendered here -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <div class="empty-icon">🔍</div>
+        <h2>No Merchants Found</h2>
+        <p>Try adjusting your search or filter.</p>
+      </div>
+    </main>
+
+    <!-- Recently Checked Section -->
+    <section id="recentlyCheckedSection" class="recently-checked-section" style="display: none;">
+      <h2>Recently Checked</h2>
+      <div id="recentlyCheckedList" class="recently-checked-list">
+        <!-- Recent checks will be rendered here -->
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+      <p class="footer-note">
+        Signup offers are detected by the DealStackr extension when you visit merchant sites. 
+        Results may vary based on page content and your browsing context.
+      </p>
+    </footer>
+  </div>
+
+  <script src="merchantData.js"></script>
+  <script src="merchantDashboard.js"></script>
+</body>
+</html>
+

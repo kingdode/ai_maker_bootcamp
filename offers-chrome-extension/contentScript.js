@@ -266,14 +266,45 @@
       // Common patterns: merchant name is usually prominent text
       let merchantName = '';
       
-      // Common UI text to exclude (tags, badges, buttons)
+      // Common UI text to exclude (tags, badges, buttons, action words)
       const excludedTexts = [
+        // UI elements and badges
         'exclusive', 'added', 'expiring', 'expires', 'new', 'limited',
         'click', 'activate', 'add', 'view', 'details', 'more',
-        'cash back', '% back', 'points', 'rewards', 'offer',
+        'cash back', '% back', 'points', 'rewards', 'offer', 'offers',
         'online', 'in-store', 'in store', 'store', 'website',
-        'terms', 'conditions', 'apply', 'save', 'deal',
-        'left', 'days', 'day', 'expires', 'expiring'
+        'terms', 'conditions', 'apply', 'save', 'deal', 'deals',
+        'left', 'days', 'day', 'expires', 'expiring',
+        // Action words commonly mistaken for merchant names
+        'earn', 'spend', 'get', 'back', 'off', 'up to',
+        'all offers', 'my offers', 'your offers', 'available offers',
+        'recommended', 'featured', 'popular', 'trending', 'top',
+        'see all', 'show all', 'view all', 'browse', 'filter',
+        'sort', 'sort by', 'category', 'categories',
+        // Common page headers
+        'card offers', 'credit card offers', 'chase offers', 'amex offers',
+        'shop with offers', 'shop offers', 'merchant offers',
+        'added to card', 'remove from card', 'add to card',
+        'statement credit', 'bonus', 'welcome',
+        // Navigation text
+        'next', 'previous', 'page', 'loading', 'load more',
+        'sign in', 'sign out', 'log in', 'log out', 'account',
+        // Common prefixes/suffixes
+        'or more', 'minimum', 'maximum', 'up to', 'starting at'
+      ];
+      
+      // Exact phrases that should never be merchant names
+      const exactExcludedPhrases = [
+        'earn', 'spend', 'get', 'back', 'all offers', 'my offers',
+        'your offers', 'offers for you', 'more offers', 'new offers',
+        'online only', 'in-store only', 'limited time', 'expires soon',
+        'expiring soon', 'expiring', 'expires', 'ending soon',
+        'add offer', 'added', 'remove', 'see details', 'view details',
+        'terms apply', 'learn more', 'find out more', 'shop now',
+        'activate now', 'use by', 'valid through', 'valid until',
+        'keep the shopping going', 'shop iconic', 'available on',
+        'sapphire reserve offers', 'sapphire preferred offers', 'freedom offers',
+        'platinum offers', 'gold offers', 'blue cash offers'
       ];
       
       // Patterns that indicate this is NOT a merchant name
@@ -281,20 +312,44 @@
         if (!text || text.length < 2) return true;
         const lower = text.toLowerCase().trim();
         
+        // Exact match for excluded phrases
+        if (exactExcludedPhrases.includes(lower)) return true;
+        
+        // Starts with "expiring" or "expires"
+        if (/^expir(ing|es?)/i.test(lower)) return true;
+        
+        // Contains "offers" at the end (e.g., "Sapphire Reserve offers")
+        if (/\s+offers?$/i.test(lower)) return true;
+        
+        // Marketing phrases
+        if (/^(keep|shop|browse|discover|explore)\s+(the|your|our|iconic)/i.test(lower)) return true;
+        
+        // Card names being captured as merchants
+        if (/^(sapphire|freedom|platinum|gold|blue\s*cash|everyday|hilton|marriott|delta)\s+(reserve|preferred|flex|unlimited|plus)?(\s+\(|$)/i.test(lower)) return true;
+        
         // Dollar amounts (e.g., "$167.93")
         if (/^\$[\d,]+(\.\d+)?$/.test(text.trim())) return true;
         
         // Time remaining (e.g., "24d left", "25 days left")
         if (/\d+\s*(d|days?|day)\s*(left|remaining)?/i.test(text)) return true;
         
-        // Button text
-        if (/^(add|view|click|activate|apply|save|more|details)/i.test(lower)) return true;
+        // Button/action text patterns
+        if (/^(add|view|click|activate|apply|save|more|details|earn|spend|get|see|show|browse|filter|sort|remove)/i.test(lower)) return true;
+        
+        // Patterns starting with common action words
+        if (/^(all|my|your|available|recommended|featured|popular)\s+(offers?|deals?)/i.test(lower)) return true;
+        
+        // Offer-related phrases
+        if (/^(card|credit|chase|amex)\s+(offers?)/i.test(lower)) return true;
         
         // Exact match for single-word excluded terms
         if (excludedTexts.some(excluded => lower === excluded)) return true;
         
-        // Check if text is ONLY excluded words
+        // Text that is entirely composed of excluded words
         const words = lower.split(/\s+/);
+        if (words.every(word => excludedTexts.includes(word) || word.length < 2)) return true;
+        
+        // Single word that matches excluded list
         if (words.length === 1 && excludedTexts.includes(words[0])) return true;
         
         // Percentage only (e.g., "15%")
@@ -306,6 +361,14 @@
         // Contains offer value patterns
         if (/\d+%\s*(cash\s+)?back/i.test(text)) return true;
         if (/\$\d+(\s+back)?/i.test(text)) return true;
+        
+        // Starts with dollar amount or percentage
+        if (/^\$\d+/.test(text.trim())) return true;
+        if (/^\d+%/.test(text.trim())) return true;
+        
+        // Common offer description patterns
+        if (/^(spend|earn|get)\s+\$/i.test(lower)) return true;
+        if (/\bor\s+more\b/i.test(lower)) return true;
         
         return false;
       };
@@ -751,6 +814,68 @@
 
       // Determine channel
       const channel = determineChannel(text);
+      
+      // Extract expiration date
+      let expiresAt = null;
+      const expirationPatterns = [
+        // "Expires 1/15/26" or "Expires 01/15/2026"
+        /expires?\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Exp 1/15/26"
+        /exp\.?\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Valid through 1/15/26"
+        /valid\s+(?:through|thru|until)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Ends 1/15/26"
+        /ends?\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Offer ends January 15, 2026"
+        /(?:offer\s+)?ends?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})?/i,
+        // "Expires January 15"
+        /expires?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?/i,
+        // "X days left"
+        /(\d+)\s*days?\s*(?:left|remaining)/i
+      ];
+      
+      for (const pattern of expirationPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          try {
+            // Handle "X days left" pattern
+            if (pattern.toString().includes('days')) {
+              const daysLeft = parseInt(match[1], 10);
+              if (daysLeft > 0 && daysLeft < 365) {
+                const expDate = new Date();
+                expDate.setDate(expDate.getDate() + daysLeft);
+                expiresAt = expDate.toISOString();
+              }
+            }
+            // Handle month name patterns
+            else if (match[1] && isNaN(parseInt(match[1]))) {
+              const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+              const monthIndex = monthNames.findIndex(m => match[1].toLowerCase().startsWith(m));
+              if (monthIndex >= 0) {
+                const day = parseInt(match[2], 10);
+                const year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+                const expDate = new Date(year, monthIndex, day);
+                expiresAt = expDate.toISOString();
+              }
+            }
+            // Handle date patterns like 1/15/26
+            else if (match[1]) {
+              const dateParts = match[1].split('/');
+              if (dateParts.length >= 2) {
+                let month = parseInt(dateParts[0], 10) - 1;
+                let day = parseInt(dateParts[1], 10);
+                let year = dateParts[2] ? parseInt(dateParts[2], 10) : new Date().getFullYear();
+                if (year < 100) year += 2000;
+                const expDate = new Date(year, month, day);
+                expiresAt = expDate.toISOString();
+              }
+            }
+            if (expiresAt) break;
+          } catch (e) {
+            // Skip invalid date parsing
+          }
+        }
+      }
 
       // Only add if we have essential data
       if (merchantName && offerValue) {
@@ -761,6 +886,7 @@
           offer_value: offerValue,
           offer_type: determineOfferType(offerValue),
           channel: channel,
+          expires_at: expiresAt,
           source_url: sourceUrl
         });
       }
@@ -949,15 +1075,47 @@
         // Extract merchant name
         let merchantName = '';
         
-        // Common UI text to exclude (tags, badges, buttons)
+        // Common UI text to exclude (tags, badges, buttons, action words)
         const excludedTexts = [
+          // UI elements and badges
           'exclusive', 'added', 'expiring', 'expires', 'new', 'limited',
           'click', 'activate', 'add', 'view', 'details', 'more',
-          'cash back', '% back', 'points', 'rewards', 'offer',
+          'cash back', '% back', 'points', 'rewards', 'offer', 'offers',
           'online', 'in-store', 'in store', 'store', 'website',
-          'terms', 'conditions', 'apply', 'save', 'deal',
-          'hbo max', 'stream', 'spend', 'earn',  // Common Amex offer page text
-          'left', 'days', 'day', 'remaining'
+          'terms', 'conditions', 'apply', 'save', 'deal', 'deals',
+          'left', 'days', 'day', 'expires', 'expiring',
+          // Action words commonly mistaken for merchant names
+          'earn', 'spend', 'get', 'back', 'off', 'up to',
+          'all offers', 'my offers', 'your offers', 'available offers',
+          'recommended', 'featured', 'popular', 'trending', 'top',
+          'see all', 'show all', 'view all', 'browse', 'filter',
+          'sort', 'sort by', 'category', 'categories',
+          // Common page headers
+          'card offers', 'credit card offers', 'chase offers', 'amex offers',
+          'shop with offers', 'shop offers', 'merchant offers',
+          'added to card', 'remove from card', 'add to card',
+          'statement credit', 'bonus', 'welcome',
+          // Amex-specific
+          'hbo max', 'stream', 'streaming',
+          // Navigation text
+          'next', 'previous', 'page', 'loading', 'load more',
+          'sign in', 'sign out', 'log in', 'log out', 'account',
+          // Common prefixes/suffixes
+          'or more', 'minimum', 'maximum', 'up to', 'starting at'
+        ];
+        
+        // Exact phrases that should never be merchant names
+        const exactExcludedPhrases = [
+          'earn', 'spend', 'get', 'back', 'all offers', 'my offers',
+          'your offers', 'offers for you', 'more offers', 'new offers',
+          'online only', 'in-store only', 'limited time', 'expires soon',
+          'expiring soon', 'expiring', 'expires', 'ending soon',
+          'add offer', 'added', 'remove', 'see details', 'view details',
+          'terms apply', 'learn more', 'find out more', 'shop now',
+          'activate now', 'use by', 'valid through', 'valid until',
+          'keep the shopping going', 'shop iconic', 'available on',
+          'sapphire reserve offers', 'sapphire preferred offers', 'freedom offers',
+          'platinum offers', 'gold offers', 'blue cash offers'
         ];
         
         // Patterns that indicate this is NOT a merchant name
@@ -965,20 +1123,44 @@
           if (!text || text.length < 2) return true;
           const lower = text.toLowerCase().trim();
           
+          // Exact match for excluded phrases
+          if (exactExcludedPhrases.includes(lower)) return true;
+          
+          // Starts with "expiring" or "expires"
+          if (/^expir(ing|es?)/i.test(lower)) return true;
+          
+          // Contains "offers" at the end (e.g., "Sapphire Reserve offers")
+          if (/\s+offers?$/i.test(lower)) return true;
+          
+          // Marketing phrases
+          if (/^(keep|shop|browse|discover|explore)\s+(the|your|our|iconic)/i.test(lower)) return true;
+          
+          // Card names being captured as merchants
+          if (/^(sapphire|freedom|platinum|gold|blue\s*cash|everyday|hilton|marriott|delta)\s+(reserve|preferred|flex|unlimited|plus)?(\s+\(|$)/i.test(lower)) return true;
+          
           // Dollar amounts (e.g., "$167.93")
           if (/^\$[\d,]+(\.\d+)?$/.test(text.trim())) return true;
           
           // Time remaining (e.g., "24d left", "25 days left")
           if (/\d+\s*(d|days?|day)\s*(left|remaining)?/i.test(text)) return true;
           
-          // Button text
-          if (/^(add|view|click|activate|apply|save|more|details)/i.test(lower)) return true;
+          // Button/action text patterns
+          if (/^(add|view|click|activate|apply|save|more|details|earn|spend|get|see|show|browse|filter|sort|remove)/i.test(lower)) return true;
+          
+          // Patterns starting with common action words
+          if (/^(all|my|your|available|recommended|featured|popular)\s+(offers?|deals?)/i.test(lower)) return true;
+          
+          // Offer-related phrases
+          if (/^(card|credit|chase|amex)\s+(offers?)/i.test(lower)) return true;
           
           // Exact match for single-word excluded terms
           if (excludedTexts.some(excluded => lower === excluded)) return true;
           
-          // Check if text is ONLY excluded words
+          // Text that is entirely composed of excluded words
           const words = lower.split(/\s+/);
+          if (words.every(word => excludedTexts.includes(word) || word.length < 2)) return true;
+          
+          // Single word that matches excluded list
           if (words.length === 1 && excludedTexts.includes(words[0])) return true;
           
           // Percentage only (e.g., "15%")
@@ -990,6 +1172,14 @@
           // Contains offer value patterns
           if (/\d+%\s*(cash\s+)?back/i.test(text)) return true;
           if (/\$\d+(\s+back)?/i.test(text)) return true;
+          
+          // Starts with dollar amount or percentage
+          if (/^\$\d+/.test(text.trim())) return true;
+          if (/^\d+%/.test(text.trim())) return true;
+          
+          // Common offer description patterns
+          if (/^(spend|earn|get)\s+\$/i.test(lower)) return true;
+          if (/\bor\s+more\b/i.test(lower)) return true;
           
           return false;
         };
@@ -1321,6 +1511,122 @@
 
       // Amex channel is often not shown, default to unknown
       const channel = determineChannel(text);
+      
+      // Extract expiration date - Amex always shows expiration dates
+      let expiresAt = null;
+      
+      // First, try to find expiration in dedicated elements within the offer card
+      const expirationSelectors = [
+        '[class*="expir" i]',
+        '[class*="date" i]',
+        '[class*="ends" i]',
+        '[class*="valid" i]',
+        '[data-testid*="expir"]',
+        '[data-testid*="date"]'
+      ];
+      
+      let expirationText = '';
+      for (const selector of expirationSelectors) {
+        try {
+          const expEl = element.querySelector(selector);
+          if (expEl && expEl.textContent) {
+            const txt = expEl.textContent.trim();
+            if (txt.length > 0 && txt.length < 100 && /\d/.test(txt)) {
+              expirationText = txt;
+              console.log('[DealStackr] Found expiration element:', selector, '->', txt);
+              break;
+            }
+          }
+        } catch (e) {
+          // Selector may not be valid, continue
+        }
+      }
+      
+      // Also look for any element containing date-like text
+      if (!expirationText) {
+        const allSpans = element.querySelectorAll('span, p, div');
+        for (const span of allSpans) {
+          const spanText = span.textContent?.trim() || '';
+          // Look for text that contains a date pattern but is short (likely just the date)
+          if (spanText.length < 30 && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(spanText)) {
+            expirationText = spanText;
+            console.log('[DealStackr] Found date in element:', spanText);
+            break;
+          }
+        }
+      }
+      
+      // Combine element text with full text for pattern matching
+      const textToSearch = expirationText ? expirationText + ' ' + text : text;
+      
+      const expirationPatterns = [
+        // "Expires 1/15/26" or "Expires 01/15/2026"
+        /expires?\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Exp 1/15/26"
+        /exp\.?\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // Just a date like "1/15/26" or "01/15/2026" (common in Amex)
+        /\b(\d{1,2}\/\d{1,2}\/\d{2,4})\b/,
+        // "Valid through 1/15/26"
+        /valid\s+(?:through|thru|until)\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Ends 1/15/26"
+        /ends?\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i,
+        // "Offer ends January 15, 2026"
+        /(?:offer\s+)?ends?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})?/i,
+        // "Expires January 15"
+        /expires?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?/i,
+        // Month Day, Year format: "January 15, 2026"
+        /(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s*(\d{4})/i,
+        // "X days left"
+        /(\d+)\s*days?\s*(?:left|remaining)/i
+      ];
+      
+      for (const pattern of expirationPatterns) {
+        const match = textToSearch.match(pattern);
+        if (match) {
+          try {
+            // Handle "X days left" pattern
+            if (pattern.toString().includes('days')) {
+              const daysLeft = parseInt(match[1], 10);
+              if (daysLeft > 0 && daysLeft < 365) {
+                const expDate = new Date();
+                expDate.setDate(expDate.getDate() + daysLeft);
+                expiresAt = expDate.toISOString();
+              }
+            }
+            // Handle month name patterns
+            else if (match[1] && isNaN(parseInt(match[1]))) {
+              const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+              const monthIndex = monthNames.findIndex(m => match[1].toLowerCase().startsWith(m));
+              if (monthIndex >= 0) {
+                const day = parseInt(match[2], 10);
+                const year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear();
+                // If the parsed date is in the past, add a year
+                let expDate = new Date(year, monthIndex, day);
+                if (expDate < new Date()) {
+                  expDate = new Date(year + 1, monthIndex, day);
+                }
+                expiresAt = expDate.toISOString();
+              }
+            }
+            // Handle date patterns like 1/15/26
+            else if (match[1]) {
+              const dateParts = match[1].split('/');
+              if (dateParts.length >= 2) {
+                let month = parseInt(dateParts[0], 10) - 1;
+                let day = parseInt(dateParts[1], 10);
+                let year = dateParts[2] ? parseInt(dateParts[2], 10) : new Date().getFullYear();
+                if (year < 100) year += 2000;
+                const expDate = new Date(year, month, day);
+                expiresAt = expDate.toISOString();
+                console.log('[DealStackr] Parsed Amex expiration:', match[1], '->', expiresAt);
+              }
+            }
+            if (expiresAt) break;
+          } catch (e) {
+            console.warn('[DealStackr] Error parsing expiration:', e);
+          }
+        }
+      }
 
       // Only add if we have essential data
       if (merchantName && offerValue) {
@@ -1331,6 +1637,7 @@
           offer_value: offerValue,
           offer_type: determineOfferType(offerValue),
           channel: channel,
+          expires_at: expiresAt,
           source_url: sourceUrl
         });
       }

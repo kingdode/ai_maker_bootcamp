@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "DealStackr",
-  "version": "1.1.0",
-  "description": "Scan and stack credit card offers from Chase and American Express with cashback portal detection",
+  "version": "1.2.0",
+  "description": "Scan and stack credit card offers from Chase and American Express with cashback portal and signup offer detection",
   "permissions": [
     "activeTab",
     "storage",
@@ -32,7 +32,7 @@
     },
     {
       "matches": ["https://*/*", "http://*/*"],
-      "js": ["affiliateDetector.js"],
+      "js": ["affiliateDetector.js", "signupDetector.js"],
       "run_at": "document_idle",
       "exclude_matches": [
         "https://*.chase.com/*",
@@ -47,7 +47,16 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["dashboard.html", "dashboard.css", "dashboard.js", "affiliateData.js"],
+      "resources": [
+        "dashboard.html", 
+        "dashboard.css", 
+        "dashboard.js", 
+        "affiliateData.js",
+        "merchantDashboard.html",
+        "merchantDashboard.css",
+        "merchantDashboard.js",
+        "merchantData.js"
+      ],
       "matches": ["<all_urls>"]
     }
   ]
