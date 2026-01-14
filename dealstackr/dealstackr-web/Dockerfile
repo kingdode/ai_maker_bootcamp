@@ -35,6 +35,7 @@ WORKDIR /app
 
 # Set production environment
 ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
 
 # Don't run as root
 RUN addgroup --system --gid 1001 nodejs && \
