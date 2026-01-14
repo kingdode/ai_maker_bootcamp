@@ -130,6 +130,16 @@ export function deleteFeaturedDeal(id: string): boolean {
 export function getOffers(): Offer[] {
   // Ensure all offers have deal scores, then sort by score (highest first)
   return [...getOffersCache()]
+    // Data quality filter: Amex offers must have expiration dates
+    .filter(offer => {
+      if (offer.issuer?.toLowerCase() === 'amex') {
+        if (!offer.expires_at) {
+          console.log('[Data] Filtering out Amex offer without expiration:', offer.merchant);
+          return false;
+        }
+      }
+      return true;
+    })
     .map(offer => ({
       ...offer,
       deal_score: offer.deal_score ?? calculateDealScore(offer.offer_value)
@@ -163,9 +173,20 @@ export function getStats(): DashboardStats {
 // Sync offers from Chrome extension
 export function syncOffers(newOffers: Offer[]): { success: boolean; count: number; message: string } {
   try {
+    // Data quality filter: Amex offers must have expiration dates
+    const qualityFiltered = newOffers.filter(offer => {
+      if (offer.issuer?.toLowerCase() === 'amex') {
+        if (!offer.expires_at) {
+          console.log('[Sync] Rejecting Amex offer without expiration:', offer.merchant);
+          return false;
+        }
+      }
+      return true;
+    });
+
     // Deduplicate by merchant + offer_value + issuer
     const seen = new Map<string, Offer>();
-    for (const offer of newOffers) {
+    for (const offer of qualityFiltered) {
       const key = `${offer.merchant}|${offer.offer_value}|${offer.issuer}|${offer.card_name}`;
       const existing = seen.get(key);
       if (!existing || new Date(offer.scanned_at) > new Date(existing.scanned_at)) {

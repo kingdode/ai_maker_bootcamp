@@ -36,7 +36,8 @@ export interface Offer {
     cashbackFixed?: number;      // Fixed $ amount (e.g., $3 back)
     cashbackType?: 'percent' | 'fixed';
     promoRate?: number;
-    portal?: string;
+    promoText?: string;          // Text description of promo (e.g., "Free shipping")
+    portal?: string;             // Portal name (rakuten, honey, etc.)
     reportCount?: number;
     lastReportAt?: string;
   };
@@ -59,6 +60,7 @@ export interface CrowdsourcedReport {
     cashback: {
       count: number;
       avgRate?: number;
+      avgFixedAmount?: number;
       lastPortal?: string;
       lastReportAt?: string;
     };
@@ -86,6 +88,8 @@ export interface FeaturedDeal {
   };
   issuer: 'Chase' | 'Amex' | 'Both';
   validUntil?: string;
+  minSpend?: number;           // Minimum spend required
+  maxRedemption?: number;      // Maximum redemption amount
   createdAt: string;
   updatedAt: string;
   active: boolean;
@@ -96,13 +100,22 @@ export interface FeaturedDeal {
   aiSummary?: {
     headline: string;               // AI-generated headline
     intro: string;                  // Opening paragraph
-    valueExplanation: string;       // Why this deal is good
+    vendorBackground?: string;      // What the vendor does/sells (paragraph)
+    valueExplanation: string;       // Why this deal is good (paragraph)
+    dealMerits?: string;            // Specific merits of this deal (paragraph)
     stackingNotes?: string;         // Rakuten, signup offers, etc.
     expirationNote?: string;        // Urgency messaging
+    howToRedeem?: string;           // Step-by-step instructions
     generatedAt: string;            // When AI content was generated
   };
+  merchantImages?: {                // Product/merchant images
+    url: string;
+    alt: string;
+    source?: string;
+  }[];
   featuredPublishedAt?: string;     // When this was published as a Top Deal
   dealScore?: number;               // DealStackr score for display
+  stackType?: 'Triple Stack' | 'Double Stack' | 'Stack' | 'Deal'; // Type of deal stack
 }
 
 export interface DashboardStats {

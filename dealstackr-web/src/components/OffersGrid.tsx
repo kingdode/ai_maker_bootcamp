@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Offer } from '@/lib/types';
+import { useState, useMemo, useEffect } from 'react';
+import { Offer, CrowdsourcedReport } from '@/lib/types';
 import ScoreBadge, { ScoreInfoTooltip } from './ScoreBadge';
 import { calculateDealScore } from '@/lib/offerScoring';
 import { getMerchantUrl } from '@/lib/merchantUrls';
@@ -16,14 +16,70 @@ export default function OffersGrid({ offers }: OffersGridProps) {
   const [filter, setFilter] = useState<'all' | 'Chase' | 'Amex'>('all');
   const [showStackable, setShowStackable] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('score');
+  const [crowdsourcedData, setCrowdsourcedData] = useState<CrowdsourcedReport[]>([]);
 
-  // Enhance offers with calculated scores if not present
+  // Fetch crowdsourced data
+  useEffect(() => {
+    fetch('/api/crowdsourced')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.reports) {
+          setCrowdsourcedData(data.reports);
+        }
+      })
+      .catch(err => console.error('Failed to fetch crowdsourced data:', err));
+  }, []);
+
+  // Helper to match merchant to crowdsourced data
+  const findCrowdsourcedForMerchant = (merchantName: string): CrowdsourcedReport | null => {
+    const normalized = merchantName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const report of crowdsourcedData) {
+      const domainBase = report.domain.replace(/\.(com|net|org|co\.uk|io)$/, '').replace(/^www\./, '').replace(/[^a-z0-9]/g, '');
+      if (normalized.includes(domainBase) || domainBase.includes(normalized)) {
+        return report;
+      }
+      if (report.merchant) {
+        const merchantNorm = report.merchant.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (normalized.includes(merchantNorm) || merchantNorm.includes(normalized)) {
+          return report;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Enhance offers with calculated scores and matched crowdsourced data
   const enhancedOffers = useMemo(() => {
-    return offers.map(offer => ({
-      ...offer,
-      deal_score: offer.deal_score ?? calculateDealScore(offer.offer_value)
-    }));
-  }, [offers]);
+    return offers.map(offer => {
+      // Check if offer already has crowdsourced data
+      const existingCrowdsourced = offer.crowdsourced && (offer.crowdsourced.reportCount || offer.crowdsourced.cashbackRate || offer.crowdsourced.promoRate);
+      if (existingCrowdsourced) {
+        // Recalculate score with stackable bonus
+        const isStackable = !!(offer.crowdsourced?.cashbackRate || offer.crowdsourced?.promoRate);
+        return {
+          ...offer,
+          deal_score: calculateDealScore(offer.offer_value, isStackable)
+        };
+      }
+      // Try to match from crowdsourcedData
+      const matched = findCrowdsourcedForMerchant(offer.merchant);
+      const hasStack = matched && (matched.aggregated?.cashback?.avgRate || matched.aggregated?.promo?.avgRate);
+      return {
+        ...offer,
+        // Recalculate score with stackable bonus if matched
+        deal_score: calculateDealScore(offer.offer_value, !!hasStack),
+        crowdsourced: matched ? {
+          cashbackRate: matched.aggregated?.cashback?.avgRate || undefined,
+          cashbackFixed: matched.aggregated?.cashback?.avgFixedAmount || undefined,
+          promoRate: matched.aggregated?.promo?.avgRate || undefined,
+          promoText: matched.aggregated?.promo?.lastOffer || undefined,
+          portal: matched.aggregated?.cashback?.lastPortal || undefined,
+          reportCount: matched.totalReports,
+          lastReportAt: matched.lastReportAt,
+        } : offer.crowdsourced
+      };
+    });
+  }, [offers, crowdsourcedData]);
 
   // Filter and sort offers
   const processedOffers = useMemo(() => {
@@ -219,24 +275,48 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                       )}
                     </td>
                     
-                    {/* Stack Cell */}
+                    {/* Stack Cell - Simple horizontal label bars */}
                     <td className="px-4 py-4">
-                      {offer.stackable && offer.crowdsourced ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-emerald-400 text-lg">🔗</span>
-                          <div className="text-xs">
-                            <p className="text-emerald-400 font-medium">
-                              +{offer.crowdsourced.cashbackRate}% {offer.crowdsourced.portal}
-                            </p>
-                            <p className="text-gray-500">
-                              {offer.crowdsourced.reportCount} reports
-                            </p>
-                          </div>
+                      {offer.crowdsourced ? (
+                        <div className="flex flex-col gap-1">
+                          {/* Rakuten Label */}
+                          {offer.crowdsourced.portal?.toLowerCase() === 'rakuten' && offer.crowdsourced.cashbackRate && (
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-[#eb0029] text-white">
+                              Rakuten {offer.crowdsourced.cashbackRate}%
+                            </span>
+                          )}
+                          
+                          {/* Honey Label */}
+                          {offer.crowdsourced.portal?.toLowerCase() === 'honey' && offer.crowdsourced.cashbackRate && (
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-amber-500 text-white">
+                              Honey {offer.crowdsourced.cashbackRate}%
+                            </span>
+                          )}
+                          
+                          {/* Other Cashback Portal Label */}
+                          {offer.crowdsourced.cashbackRate && 
+                           offer.crowdsourced.portal?.toLowerCase() !== 'rakuten' && 
+                           offer.crowdsourced.portal?.toLowerCase() !== 'honey' && (
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-emerald-500 text-white">
+                              {offer.crowdsourced.portal || 'Cashback'} {offer.crowdsourced.cashbackRate}%
+                            </span>
+                          )}
+                          
+                          {/* Email Signup Label */}
+                          {(offer.crowdsourced.promoRate || offer.crowdsourced.promoText) && (
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-purple-500 text-white max-w-[140px] truncate">
+                              Email {offer.crowdsourced.promoRate 
+                                ? `${offer.crowdsourced.promoRate}%` 
+                                : (offer.crowdsourced.promoText ? 'Offer' : '')}
+                            </span>
+                          )}
                         </div>
                       ) : offer.stackable ? (
-                        <span className="text-emerald-400">🔗</span>
+                        <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-gray-600 text-white">
+                          Stackable
+                        </span>
                       ) : (
-                        <span className="text-gray-500">—</span>
+                        <span className="text-gray-600">—</span>
                       )}
                     </td>
                   </tr>

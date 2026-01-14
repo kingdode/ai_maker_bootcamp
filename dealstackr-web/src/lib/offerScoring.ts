@@ -42,6 +42,9 @@ export const SPEND_ADJUSTMENT_MAX = 10;
 /** Default adjustment when minimum spend is unknown */
 export const UNKNOWN_SPEND_ADJUSTMENT = 3;
 
+/** Bonus points for stackable deals (user-reported cashback/promo available) */
+export const STACKABLE_BONUS = 15;
+
 // ============================================================================
 // SCORE BAND DEFINITIONS
 // ============================================================================
@@ -169,6 +172,7 @@ export interface ScoreBreakdown {
   absoluteScore: number;
   percentScore: number;
   spendAdjustment: number;
+  stackableBonus: number;
   rawScore: number;
   finalScore: number;
   band: ScoreBand;
@@ -182,17 +186,20 @@ export interface ScoreBreakdown {
  * 1. Absolute Score (0-55): min(amountBack / 60, 1) * 55
  * 2. Percent Score (0-35): min(percentBack / 30, 1) * 35
  * 3. Spend Adjustment (0 to -10): min(minSpend / 400, 1) * 10 (or 3 if unknown)
- * 4. Final Score: absoluteScore + percentScore - spendAdjustment, clamped 0-100
+ * 4. Stackable Bonus (+15): Applied when offer has user-reported cashback/promo stacks
+ * 5. Final Score: absoluteScore + percentScore - spendAdjustment + stackableBonus, clamped 0-100
  * 
  * @param amountBack - Dollar amount back (e.g., 50 for "$50 back")
  * @param percentBack - Percentage back (e.g., 20 for "20% back")
  * @param minSpend - Minimum spend required (null if unknown)
+ * @param isStackable - Whether the offer has user-reported stacking opportunities
  * @returns Score breakdown with final score and band classification
  */
 export function calculateScore(
   amountBack: number | null,
   percentBack: number | null,
-  minSpend: number | null
+  minSpend: number | null,
+  isStackable: boolean = false
 ): ScoreBreakdown {
   // Default to 0 if null
   const amount = amountBack ?? 0;
@@ -216,13 +223,17 @@ export function calculateScore(
     spendAdjustment = UNKNOWN_SPEND_ADJUSTMENT;
   }
 
-  // 4. Calculate raw score
-  const rawScore = absoluteScore + percentScore - spendAdjustment;
+  // 4. Stackable Bonus (+15 points)
+  // BIG uprank for deals with verified stacking opportunities (Rakuten, email signup, etc.)
+  const stackableBonus = isStackable ? STACKABLE_BONUS : 0;
 
-  // 5. Clamp to 0-100 and round
+  // 5. Calculate raw score
+  const rawScore = absoluteScore + percentScore - spendAdjustment + stackableBonus;
+
+  // 6. Clamp to 0-100 and round
   const finalScore = Math.round(Math.max(0, Math.min(100, rawScore)));
 
-  // 6. Determine score band
+  // 7. Determine score band
   const band = getScoreBand(finalScore);
   const bandInfo: ScoreBandInfo = {
     band,
@@ -233,6 +244,7 @@ export function calculateScore(
     absoluteScore: Math.round(absoluteScore * 10) / 10,
     percentScore: Math.round(percentScore * 10) / 10,
     spendAdjustment: Math.round(spendAdjustment * 10) / 10,
+    stackableBonus,
     rawScore: Math.round(rawScore * 10) / 10,
     finalScore,
     band,
@@ -253,10 +265,13 @@ export function getScoreBand(score: number): ScoreBand {
 /**
  * Calculate score directly from an offer value string.
  * Convenience function that combines parsing and scoring.
+ * 
+ * @param offerValue - The offer string to parse (e.g., "$50 back on $250")
+ * @param isStackable - Whether the offer has user-reported stacking opportunities
  */
-export function calculateDealScore(offerValue: string): ScoreBreakdown {
+export function calculateDealScore(offerValue: string, isStackable: boolean = false): ScoreBreakdown {
   const parsed = parseOfferValue(offerValue);
-  return calculateScore(parsed.amountBack, parsed.percentBack, parsed.minSpend);
+  return calculateScore(parsed.amountBack, parsed.percentBack, parsed.minSpend, isStackable);
 }
 
 /**
@@ -266,6 +281,7 @@ export function getScoreExplanation(): string {
   return `DealStackr Score prioritizes real cash back (up to ${ABSOLUTE_WEIGHT} points), ` +
     `then percentage savings (up to ${PERCENT_WEIGHT} points), ` +
     `with a light adjustment for required spend (up to -${SPEND_ADJUSTMENT_MAX} points). ` +
+    `Stackable deals with verified Rakuten/email offers get a +${STACKABLE_BONUS} point bonus! ` +
     `Higher scores = better value for your wallet.`;
 }
 

@@ -1,0 +1,376 @@
+{
+  "indeed.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": null,
+        "count": 0,
+        "lastOffer": null,
+        "lastReportAt": null,
+        "rates": []
+      }
+    },
+    "domain": "indeed.com",
+    "lastReportAt": null,
+    "reports": [],
+    "totalReports": 0
+  },
+  "lg.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": 5,
+        "count": 1,
+        "lastPortal": "unknown",
+        "lastReportAt": "2026-01-13T20:09:12.548Z",
+        "rates": [
+          5
+        ]
+      },
+      "promo": {
+        "avgRate": null,
+        "count": 0,
+        "lastOffer": null,
+        "lastReportAt": null,
+        "rates": []
+      }
+    },
+    "domain": "lg.com",
+    "lastReportAt": "2026-01-13T20:09:12.548Z",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": "unknown",
+        "rate": 5,
+        "rateDisplay": "5%",
+        "reportedAt": "2026-01-13T20:09:12.548Z",
+        "reporterHash": "mzplb9",
+        "type": "cashback"
+      }
+    ],
+    "totalReports": 1
+  },
+  "mackage.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": 2,
+        "count": 1,
+        "lastPortal": "rakuten",
+        "lastReportAt": "2026-01-14T20:48:21.265Z",
+        "rates": [
+          2
+        ]
+      },
+      "promo": {
+        "avgRate": null,
+        "count": 0,
+        "lastOffer": null,
+        "lastReportAt": null,
+        "rates": []
+      }
+    },
+    "domain": "mackage.com",
+    "lastReportAt": "2026-01-14T20:48:21.265Z",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": "rakuten",
+        "rate": 2,
+        "rateDisplay": "2%",
+        "reportedAt": "2026-01-14T20:48:21.265Z",
+        "reporterHash": "m6p9v8",
+        "type": "cashback"
+      }
+    ],
+    "totalReports": 1
+  },
+  "rag-bone.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": 20,
+        "count": 2,
+        "lastOffer": null,
+        "lastReportAt": "2026-01-14T21:04:32.290Z",
+        "rates": [
+          20,
+          20
+        ]
+      }
+    },
+    "domain": "rag-bone.com",
+    "lastReportAt": "2026-01-14T21:04:32.290Z",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": null,
+        "rate": 20,
+        "rateDisplay": "20% off",
+        "reportedAt": "2026-01-14T21:04:32.290Z",
+        "reporterHash": "m6p9v8",
+        "type": "promo"
+      },
+      {
+        "fixedAmount": null,
+        "portal": null,
+        "rate": 20,
+        "rateDisplay": "20% off",
+        "reportedAt": "2026-01-13T20:06:26.800Z",
+        "reporterHash": "mzplb9",
+        "type": "promo"
+      }
+    ],
+    "totalReports": 2,
+    "merchant": "Shop Men’s Clothing & Outfits"
+  },
+  "therabody.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": 7,
+        "count": 1,
+        "lastPortal": "unknown",
+        "lastReportAt": "2026-01-13T20:08:34.975Z",
+        "rates": [
+          7
+        ]
+      },
+      "promo": {
+        "avgRate": null,
+        "count": 0,
+        "lastOffer": null,
+        "lastReportAt": null,
+        "rates": []
+      }
+    },
+    "domain": "therabody.com",
+    "lastReportAt": "2026-01-13T20:08:34.975Z",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": "unknown",
+        "rate": 7,
+        "rateDisplay": "7%",
+        "reportedAt": "2026-01-13T20:08:34.975Z",
+        "reporterHash": "mzplb9",
+        "type": "cashback"
+      }
+    ],
+    "totalReports": 1
+  },
+  "calm.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 1,
+        "lastPortal": "rakuten",
+        "lastReportAt": "2026-01-14T20:52:04.016Z",
+        "rates": []
+      },
+      "promo": {
+        "avgRate": null,
+        "count": 0,
+        "lastOffer": null,
+        "lastReportAt": null,
+        "rates": []
+      }
+    },
+    "domain": "calm.com",
+    "lastReportAt": "2026-01-14T20:52:04.016Z",
+    "merchant": "Calm",
+    "reports": [
+      {
+        "fixedAmount": 2,
+        "portal": "rakuten",
+        "rate": null,
+        "rateDisplay": "$2",
+        "reportedAt": "2026-01-14T20:52:04.016Z",
+        "reporterHash": "m6p9v8",
+        "type": "cashback"
+      }
+    ],
+    "totalReports": 1
+  },
+  "mizzenandmain.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": 20,
+        "count": 1,
+        "lastOffer": null,
+        "lastReportAt": "2026-01-14T20:59:20.857Z",
+        "rates": [
+          20
+        ]
+      }
+    },
+    "domain": "mizzenandmain.com",
+    "lastReportAt": "2026-01-14T20:59:20.857Z",
+    "merchant": "Classic Style. Modern Performance.",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": null,
+        "rate": 20,
+        "rateDisplay": "20% off",
+        "reportedAt": "2026-01-14T20:59:20.857Z",
+        "reporterHash": "m6p9v8",
+        "type": "promo"
+      }
+    ],
+    "totalReports": 1
+  },
+  "drinkag1.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": 26,
+        "count": 1,
+        "lastOffer": "26% off first subscription sign up",
+        "lastReportAt": "2026-01-14T21:09:48.557Z",
+        "rates": [
+          26
+        ]
+      }
+    },
+    "domain": "drinkag1.com",
+    "lastReportAt": "2026-01-14T21:09:48.557Z",
+    "merchant": "AG1 Official",
+    "reports": [
+      {
+        "fixedAmount": "26% off first subscription sign up",
+        "portal": null,
+        "rate": 26,
+        "rateDisplay": "26% off + 26% off first subscription sign up",
+        "reportedAt": "2026-01-14T21:09:48.557Z",
+        "reporterHash": "m6p9v8",
+        "type": "promo"
+      }
+    ],
+    "totalReports": 1
+  },
+  "maccosmetics.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": 15,
+        "count": 1,
+        "lastOffer": null,
+        "lastReportAt": "2026-01-14T20:37:03.855Z",
+        "rates": [
+          15
+        ]
+      }
+    },
+    "domain": "maccosmetics.com",
+    "lastReportAt": "2026-01-14T20:37:03.855Z",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": null,
+        "rate": 15,
+        "rateDisplay": "15% off",
+        "reportedAt": "2026-01-14T20:37:03.855Z",
+        "reporterHash": "m6p9v8",
+        "type": "promo"
+      }
+    ],
+    "totalReports": 1
+  },
+  "tonal.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": null,
+        "count": 1,
+        "lastOffer": "Free Accessory Bundle with Purchase of a Tonal 2",
+        "lastReportAt": "2026-01-14T21:08:38.859Z",
+        "rates": []
+      }
+    },
+    "domain": "tonal.com",
+    "lastReportAt": "2026-01-14T21:08:38.859Z",
+    "merchant": "Tonal",
+    "reports": [
+      {
+        "fixedAmount": "Free Accessory Bundle with Purchase of a Tonal 2",
+        "portal": null,
+        "rate": null,
+        "rateDisplay": "Free Accessory Bundle with Purchase of a Tonal 2",
+        "reportedAt": "2026-01-14T21:08:38.859Z",
+        "reporterHash": "m6p9v8",
+        "type": "promo"
+      }
+    ],
+    "totalReports": 1
+  },
+  "cotopaxi.com": {
+    "aggregated": {
+      "cashback": {
+        "avgRate": null,
+        "count": 0,
+        "lastPortal": null,
+        "lastReportAt": null,
+        "rates": []
+      },
+      "promo": {
+        "avgRate": 20,
+        "count": 1,
+        "lastOffer": null,
+        "lastReportAt": "2026-01-14T21:12:30.369Z",
+        "rates": [
+          20
+        ]
+      }
+    },
+    "domain": "cotopaxi.com",
+    "lastReportAt": "2026-01-14T21:12:30.369Z",
+    "merchant": "Cotopaxi",
+    "reports": [
+      {
+        "fixedAmount": null,
+        "portal": null,
+        "rate": 20,
+        "rateDisplay": "20% off",
+        "reportedAt": "2026-01-14T21:12:30.369Z",
+        "reporterHash": "m6p9v8",
+        "type": "promo"
+      }
+    ],
+    "totalReports": 1
+  }
+}

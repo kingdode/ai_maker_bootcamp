@@ -120,3 +120,43 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE - Remove a crowdsourced report by domain
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const domain = searchParams.get('domain');
+    
+    if (!domain) {
+      return NextResponse.json(
+        { error: 'Domain parameter is required' },
+        { status: 400 }
+      );
+    }
+    
+    const existing = getCrowdsourcedCache();
+    
+    if (!existing[domain]) {
+      return NextResponse.json(
+        { error: 'Report not found' },
+        { status: 404 }
+      );
+    }
+    
+    delete existing[domain];
+    crowdsourcedCache = existing;
+    saveCrowdsourcedData(existing);
+    
+    return NextResponse.json({
+      success: true,
+      message: `Deleted report for ${domain}`,
+      totalDomains: Object.keys(existing).length
+    });
+  } catch (error) {
+    console.error('Error deleting crowdsourced data:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete crowdsourced data' },
+      { status: 500 }
+    );
+  }
+}

@@ -32,36 +32,83 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
     return { label: 'Low', emoji: '📉', class: 'bg-gray-500/20 text-gray-400' };
   };
 
+  // Determine stack type from components
+  const getStackType = (deal: FeaturedDeal): string | null => {
+    // Check for explicit stackType from deal data first
+    if (deal.stackType) {
+      return deal.stackType;
+    }
+    
+    const hasCard = !!deal.components?.cardOffer;
+    const hasCashback = !!deal.components?.cashback;
+    const hasPromo = !!deal.components?.promoCode;
+    const count = [hasCard, hasCashback, hasPromo].filter(Boolean).length;
+    
+    if (count >= 3) return 'Triple Stack';
+    if (count === 2) return 'Double Stack';
+    if (count === 1) return 'Stack';
+    return null;
+  };
+
+  const getStackBadge = (stackType: string | null) => {
+    if (!stackType) return null;
+    switch (stackType) {
+      case 'Triple Stack':
+        return { label: 'TRIPLE STACK', emoji: '🔥🔥🔥', class: 'bg-gradient-to-r from-orange-500 to-red-500 text-white' };
+      case 'Double Stack':
+        return { label: 'DOUBLE STACK', emoji: '🔥🔥', class: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' };
+      case 'Stack':
+        return { label: 'STACK', emoji: '🔥', class: 'bg-amber-500/20 text-amber-400' };
+      default:
+        return null;
+    }
+  };
+
   return (
-    <section className="mb-12">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-2 h-8 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full" />
-        <h2 className="text-2xl font-bold text-white">Featured Deal Stacks</h2>
-        <span className="px-3 py-1 text-xs font-semibold bg-amber-500/20 text-amber-400 rounded-full uppercase tracking-wider">
+    <section className="mb-12 overflow-visible">
+      {/* Hero Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-8 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full" />
+          <h2 className="text-2xl md:text-3xl font-bold text-white">🔥 Featured Deal Stacks</h2>
+        </div>
+        <span className="px-3 py-1 text-xs font-semibold bg-amber-500/20 text-amber-400 rounded-full uppercase tracking-wider animate-pulse">
           Hot
         </span>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Horizontal Scrollable Grid */}
+      <div className="relative -mx-4 px-4 md:mx-0 md:px-0">
+        <div className="overflow-x-auto overflow-y-visible pb-6 pt-4 scrollbar-hide">
+          <div className="flex gap-6 min-w-max md:grid md:grid-cols-2 lg:grid-cols-3 md:min-w-0">
         {deals.map((deal, index) => {
           const expiry = formatExpiry(deal.validUntil);
           const scoreBadge = getScoreBadge(deal.dealScore);
+          const stackType = getStackType(deal);
+          const stackBadge = getStackBadge(stackType);
           
           return (
-            <Link
-              key={deal.id}
-              href={`/deals/${deal.id}`}
-              className={`relative group card-glow rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer block ${
-                index === 0 
-                  ? 'bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border-indigo-500/30 pulse-glow' 
-                  : 'bg-[var(--card)] border-[var(--border)] hover:border-indigo-500/50'
-              }`}
-            >
-              {index === 0 && (
-                <div className="absolute -top-3 -right-3 px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold rounded-full shadow-lg z-10">
-                  ⭐ TOP PICK
-                </div>
-              )}
+            <div key={deal.id} className="relative w-[340px] md:w-auto flex-shrink-0">
+              <Link
+                href={`/deals/${deal.id}`}
+                className={`relative group card-glow rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer block ${
+                  index === 0 
+                    ? 'bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border-indigo-500/30 pulse-glow' 
+                    : 'bg-[var(--card)] border-[var(--border)] hover:border-indigo-500/50'
+                }`}
+              >
+                {/* Stack Type Badge */}
+                {stackBadge && (
+                  <div className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-lg z-10 ${stackBadge.class}`}>
+                    {stackBadge.emoji} {stackBadge.label}
+                  </div>
+                )}
+                
+                {index === 0 && (
+                  <div className="absolute -top-3 -right-3 px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold rounded-full shadow-lg z-10">
+                    ⭐ TOP PICK
+                  </div>
+                )}
               
               <div className="p-6">
                 {/* Header */}
@@ -137,8 +184,18 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
                 </div>
               </div>
             </Link>
+            </div>
           );
         })}
+          </div>
+        </div>
+        
+        {/* Scroll indicator for mobile */}
+        {deals.length > 1 && (
+          <div className="text-center mt-4 md:hidden">
+            <p className="text-xs text-gray-500">← Scroll for more deals →</p>
+          </div>
+        )}
       </div>
     </section>
   );

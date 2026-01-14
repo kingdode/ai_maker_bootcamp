@@ -128,18 +128,75 @@ export default async function DealPage({ params }: DealPageProps) {
           </div>
         </div>
 
+        {/* Merchant Images */}
+        {deal.merchantImages && deal.merchantImages.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {deal.merchantImages.map((image, index) => (
+              <div key={index} className="rounded-xl overflow-hidden border border-[#2a2a3a]">
+                <img 
+                  src={image.url} 
+                  alt={image.alt} 
+                  className="w-full h-48 object-cover"
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                />
+                {image.source && (
+                  <p className="text-xs text-gray-500 p-2 bg-[#12121a]">{image.source}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
+            {/* Vendor Background */}
+            {deal.aiSummary?.vendorBackground && (
+              <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
+                <h2 className="text-xl font-bold text-white mb-4">About {deal.merchant}</h2>
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <p className="text-gray-300 leading-relaxed whitespace-pre-line">
+                    {deal.aiSummary.vendorBackground.replace(/\*\*/g, '')}
+                  </p>
+                </div>
+              </section>
+            )}
+
             {/* Value Explanation */}
             {deal.aiSummary?.valueExplanation && (
               <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
-                <h2 className="text-xl font-bold text-white mb-4">Why This Deal Stands Out</h2>
+                <h2 className="text-xl font-bold text-white mb-4">💰 The Value Breakdown</h2>
                 <div className="prose prose-invert prose-sm max-w-none">
                   <p className="text-gray-300 leading-relaxed whitespace-pre-line">
                     {deal.aiSummary.valueExplanation.replace(/\*\*/g, '')}
                   </p>
+                </div>
+              </section>
+            )}
+
+            {/* Deal Merits */}
+            {deal.aiSummary?.dealMerits && (
+              <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
+                <h2 className="text-xl font-bold text-white mb-4">⭐ What Makes This Deal Special</h2>
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <p className="text-gray-300 leading-relaxed whitespace-pre-line">
+                    {deal.aiSummary.dealMerits.replace(/\*\*/g, '')}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {/* How to Redeem */}
+            {deal.aiSummary?.howToRedeem && (
+              <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
+                <h2 className="text-xl font-bold text-white mb-4">📝 How to Redeem This Offer</h2>
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <div className="text-gray-300 leading-relaxed whitespace-pre-line">
+                    {deal.aiSummary.howToRedeem.split('\n').map((line, i) => (
+                      <p key={i} className="mb-3">{line.replace(/\*\*/g, '')}</p>
+                    ))}
+                  </div>
                 </div>
               </section>
             )}

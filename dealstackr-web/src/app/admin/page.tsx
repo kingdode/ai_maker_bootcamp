@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { FeaturedDeal, Offer, CrowdsourcedReport } from '@/lib/types';
+import { calculateStackedDeal, parseCardOffer, getStackType, DealComponents, DealCalculation } from '@/lib/dealCalculator';
 
 export default function AdminPage() {
   const [deals, setDeals] = useState<FeaturedDeal[]>([]);
@@ -11,7 +12,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [editingDeal, setEditingDeal] = useState<FeaturedDeal | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [activeTab, setActiveTab] = useState<'featured' | 'offers' | 'userreports'>('featured');
+  const [activeTab, setActiveTab] = useState<'featured' | 'offers' | 'userreports' | 'settings'>('featured');
   
   // Promotion modal state
   const [promotingOffer, setPromotingOffer] = useState<Offer | null>(null);
@@ -24,7 +25,11 @@ export default function AdminPage() {
     promoCode: string;
     validUntil: string;
     priority: number;
+    minSpend: number | null;
+    maxRedemption: number | null;
     aiSummary: FeaturedDeal['aiSummary'] | null;
+    merchantImages: Array<{ url: string; alt: string; source?: string }>;
+    articleContent: string;
   }>({
     title: '',
     description: '',
@@ -34,9 +39,45 @@ export default function AdminPage() {
     promoCode: '',
     validUntil: '',
     priority: 1,
-    aiSummary: null
+    minSpend: null,
+    maxRedemption: null,
+    aiSummary: null,
+    merchantImages: [],
+    articleContent: ''
   });
   const [generatingAI, setGeneratingAI] = useState(false);
+  const [openaiApiKey, setOpenaiApiKey] = useState<string>('');
+  const [articleContent, setArticleContent] = useState<string>('');
+  const [generatingArticle, setGeneratingArticle] = useState(false);
+  
+  // User report promotion modal state
+  const [promotingReport, setPromotingReport] = useState<CrowdsourcedReport | null>(null);
+  const [matchingCardOffers, setMatchingCardOffers] = useState<Offer[]>([]);
+  const [selectedCardOffer, setSelectedCardOffer] = useState<Offer | null>(null);
+  const [reportPromotionForm, setReportPromotionForm] = useState({
+    title: '',
+    description: '',
+    totalValue: '',
+    // Card offer fields
+    cardOffer: '',
+    cardOfferBack: 0,
+    cardOfferMinSpend: 0,
+    // Cashback fields
+    cashback: '',
+    cashbackPercent: 0,
+    cashbackFixed: 0,
+    portalName: '',
+    // Promo/signup fields
+    promoCode: '',
+    signupPercent: 0,
+    signupFixed: 0,
+    // Other
+    validUntil: '',
+    priority: 1,
+    // For calculation
+    targetSpend: 0
+  });
+  const [dealCalculation, setDealCalculation] = useState<DealCalculation | null>(null);
 
   const emptyDeal: Omit<FeaturedDeal, 'id' | 'createdAt' | 'updatedAt'> = {
     title: '',
@@ -56,6 +97,11 @@ export default function AdminPage() {
     fetchDeals();
     fetchOffers();
     fetchCrowdsourcedData();
+    // Load OpenAI API key from localStorage
+    const savedKey = localStorage.getItem('openai_api_key');
+    if (savedKey) {
+      setOpenaiApiKey(savedKey);
+    }
   }, []);
 
   const fetchDeals = async () => {
@@ -169,6 +215,15 @@ export default function AdminPage() {
   // Promotion modal functions
   const openPromotionModal = (offer: Offer) => {
     setPromotingOffer(offer);
+    
+    // Parse min spend and max redemption from offer value
+    const minSpendMatch = offer.offer_value.match(/(?:on|with)\s*\$(\d+(?:,\d{3})*(?:\.\d+)?)\+?\s*spend/i);
+    const minSpend = minSpendMatch ? parseFloat(minSpendMatch[1].replace(/,/g, '')) : null;
+    
+    // Try to extract max redemption (common patterns: "up to $X", "max $X", "$X max")
+    const maxRedemptionMatch = offer.offer_value.match(/(?:up\s+to|max(?:imum)?|maximum)\s*\$(\d+(?:,\d{3})*(?:\.\d+)?)/i);
+    const maxRedemption = maxRedemptionMatch ? parseFloat(maxRedemptionMatch[1].replace(/,/g, '')) : null;
+    
     setPromotionForm({
       title: `${offer.merchant} Deal`,
       description: `${offer.offer_value} at ${offer.merchant}`,
@@ -178,7 +233,10 @@ export default function AdminPage() {
       promoCode: '',
       validUntil: offer.expires_at ? offer.expires_at.split('T')[0] : '',
       priority: 1,
-      aiSummary: null
+      minSpend: minSpend,
+      maxRedemption: maxRedemption,
+      aiSummary: null,
+      articleContent: ''
     });
   };
 
@@ -193,8 +251,12 @@ export default function AdminPage() {
       promoCode: '',
       validUntil: '',
       priority: 1,
-      aiSummary: null
+      minSpend: null,
+      maxRedemption: null,
+      aiSummary: null,
+      articleContent: ''
     });
+    setArticleContent('');
   };
 
   const generateAISummary = async () => {
@@ -232,6 +294,70 @@ export default function AdminPage() {
     }
   };
 
+  const generateArticle = async () => {
+    if (!promotingOffer) return;
+    
+    if (!openaiApiKey) {
+      alert('Please configure your OpenAI API key in Settings first.');
+      closePromotionModal();
+      setActiveTab('settings');
+      return;
+    }
+    
+    setGeneratingArticle(true);
+    try {
+      const res = await fetch('/api/openai/generate-article', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-openai-api-key': openaiApiKey
+        },
+        body: JSON.stringify({
+          merchant: promotingOffer.merchant,
+          offerValue: promotionForm.cardOffer || promotingOffer.offer_value,
+          issuer: promotingOffer.issuer,
+          cardName: promotingOffer.card_name,
+          minSpend: promotionForm.minSpend || undefined,
+          maxRedemption: promotionForm.maxRedemption || undefined,
+          expiresAt: promotionForm.validUntil || promotingOffer.expires_at || undefined,
+          cashback: promotionForm.cashback || undefined,
+          promoCode: promotionForm.promoCode || undefined,
+          dealScore: promotingOffer.deal_score?.finalScore || undefined,
+          stackType: promotionForm.cashback && promotionForm.promoCode ? 'Triple Stack' : 
+                     (promotionForm.cashback || promotionForm.promoCode) ? 'Double Stack' : undefined
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success && data.article) {
+        setPromotionForm(prev => ({
+          ...prev,
+          aiSummary: data.article,
+          merchantImages: data.merchantImages || [],
+          title: data.article.headline,
+          description: data.article.intro,
+          articleContent: data.rawContent || ''
+        }));
+        setArticleContent(data.rawContent || '');
+      } else {
+        throw new Error(data.error || 'Failed to generate article');
+      }
+    } catch (error: any) {
+      console.error('Failed to generate article:', error);
+      alert(`Failed to generate article: ${error.message || 'Please check your API key and try again.'}`);
+    } finally {
+      setGeneratingArticle(false);
+    }
+  };
+
+  const saveApiKey = () => {
+    if (openaiApiKey) {
+      localStorage.setItem('openai_api_key', openaiApiKey);
+      setShowApiKeyInput(false);
+      alert('API key saved successfully!');
+    }
+  };
+
   const publishPromotion = async () => {
     if (!promotingOffer) return;
     
@@ -248,10 +374,13 @@ export default function AdminPage() {
         },
         issuer: promotingOffer.issuer === 'Unknown' ? 'Both' : (promotingOffer.issuer === 'Amex' || promotingOffer.issuer === 'Chase') ? promotingOffer.issuer : 'Both',
         validUntil: promotionForm.validUntil || undefined,
+        minSpend: promotionForm.minSpend || undefined,
+        maxRedemption: promotionForm.maxRedemption || undefined,
         active: true,
         priority: promotionForm.priority,
         sourceOfferId: promotingOffer.id,
         aiSummary: promotionForm.aiSummary || undefined,
+        merchantImages: promotionForm.merchantImages && promotionForm.merchantImages.length > 0 ? promotionForm.merchantImages : undefined,
         featuredPublishedAt: new Date().toISOString(),
         dealScore: promotingOffer.deal_score?.finalScore
       };
@@ -277,6 +406,262 @@ export default function AdminPage() {
     if (score >= 60) return { label: 'Strong', class: 'bg-emerald-500/20 text-emerald-400' };
     if (score >= 40) return { label: 'Decent', class: 'bg-blue-500/20 text-blue-400' };
     return { label: 'Low', class: 'bg-gray-500/20 text-gray-400' };
+  };
+
+  // Delete a user report
+  const deleteUserReport = async (domain: string) => {
+    if (!confirm(`Are you sure you want to delete all reports for ${domain}?`)) return;
+    
+    try {
+      const res = await fetch(`/api/crowdsourced?domain=${encodeURIComponent(domain)}`, {
+        method: 'DELETE'
+      });
+      
+      if (!res.ok) throw new Error('Failed to delete');
+      
+      await fetchCrowdsourcedData();
+    } catch (error) {
+      console.error('Failed to delete user report:', error);
+      alert('Failed to delete user report');
+    }
+  };
+
+  // Open promotion modal for user report
+  const openReportPromotionModal = (report: CrowdsourcedReport) => {
+    const merchantName = report.merchant || report.domain.replace(/\.(com|net|org)$/, '');
+    const cashbackRate = report.aggregated?.cashback?.avgRate || 0;
+    const cashbackFixed = report.aggregated?.cashback?.avgFixedAmount || 0;
+    const promoRate = report.aggregated?.promo?.avgRate || 0;
+    const promoText = report.aggregated?.promo?.lastOffer || '';
+    const portal = report.aggregated?.cashback?.lastPortal || '';
+    
+    // Find matching card offers for this merchant
+    const normalizedMerchant = merchantName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const matchedOffers = offers.filter(offer => {
+      const offerMerchant = offer.merchant.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return offerMerchant.includes(normalizedMerchant) || normalizedMerchant.includes(offerMerchant);
+    });
+    setMatchingCardOffers(matchedOffers);
+    
+    // Pre-select the best card offer if available
+    const bestOffer = matchedOffers.length > 0 
+      ? matchedOffers.reduce((best, offer) => 
+          (offer.deal_score?.finalScore || 0) > (best.deal_score?.finalScore || 0) ? offer : best
+        )
+      : null;
+    setSelectedCardOffer(bestOffer);
+    
+    // Parse the best card offer if available
+    let cardOfferBack = 0;
+    let cardOfferMinSpend = 0;
+    let cardOfferText = '';
+    if (bestOffer) {
+      const parsed = parseCardOffer(bestOffer.offer_value);
+      cardOfferBack = parsed.back || 0;
+      cardOfferMinSpend = parsed.minSpend || 0;
+      cardOfferText = bestOffer.offer_value;
+    }
+    
+    // Build cashback text
+    let cashbackText = '';
+    if (cashbackRate && portal) {
+      cashbackText = `${cashbackRate.toFixed(1)}% via ${portal}`;
+    } else if (cashbackFixed && portal) {
+      cashbackText = `$${cashbackFixed.toFixed(0)} via ${portal}`;
+    } else if (cashbackRate) {
+      cashbackText = `${cashbackRate.toFixed(1)}% cashback`;
+    } else if (cashbackFixed) {
+      cashbackText = `$${cashbackFixed.toFixed(0)} cashback`;
+    }
+    
+    // Build promo text
+    let promoCodeText = '';
+    if (promoRate) {
+      promoCodeText = `${promoRate.toFixed(0)}% off with signup`;
+    }
+    if (promoText && promoText !== promoCodeText) {
+      promoCodeText = promoCodeText ? `${promoCodeText}, ${promoText}` : promoText;
+    }
+    
+    // Determine stack type
+    const hasCashback = !!(cashbackRate || cashbackFixed);
+    const hasPromo = !!(promoRate || promoText);
+    const hasCard = !!bestOffer;
+    
+    let stackType = 'Deal';
+    if (hasCard && hasCashback && hasPromo) {
+      stackType = 'Triple Stack';
+    } else if ((hasCard && hasCashback) || (hasCard && hasPromo) || (hasCashback && hasPromo)) {
+      stackType = 'Double Stack';
+    } else if (hasCard || hasCashback || hasPromo) {
+      stackType = 'Stack';
+    }
+    
+    // Calculate initial target spend based on card offer min spend or default
+    const targetSpend = cardOfferMinSpend > 0 ? cardOfferMinSpend : 150;
+    
+    // Build description
+    let description = '';
+    if (stackType === 'Triple Stack') {
+      description = `🔥🔥🔥 Triple Stack! Combine ${cardOfferText}, ${cashbackText}, and ${promoCodeText} at ${merchantName} for maximum savings!`;
+    } else if (stackType === 'Double Stack') {
+      description = `🔥🔥 Double Stack! ${hasCard ? cardOfferText : ''} ${hasCashback ? cashbackText : ''} ${hasPromo ? promoCodeText : ''} at ${merchantName}.`;
+    } else {
+      description = `Stack opportunity at ${merchantName}. ${hasCard ? cardOfferText : hasPromo ? promoCodeText : cashbackText}`;
+    }
+    
+    setPromotingReport(report);
+    setReportPromotionForm({
+      title: `${merchantName} ${stackType}`,
+      description: description,
+      totalValue: '', // Will be calculated
+      cardOffer: cardOfferText,
+      cardOfferBack: cardOfferBack,
+      cardOfferMinSpend: cardOfferMinSpend,
+      cashback: cashbackText,
+      cashbackPercent: cashbackRate,
+      cashbackFixed: cashbackFixed,
+      portalName: portal,
+      promoCode: promoCodeText,
+      signupPercent: promoRate,
+      signupFixed: 0,
+      validUntil: bestOffer?.expires_at?.split('T')[0] || '',
+      priority: stackType === 'Triple Stack' ? 1 : stackType === 'Double Stack' ? 2 : 3,
+      targetSpend: targetSpend
+    });
+    
+    // Calculate the deal
+    recalculateDeal({
+      originalPrice: targetSpend,
+      signupDiscountPercent: promoRate || undefined,
+      cardOfferBack: cardOfferBack || undefined,
+      cardOfferMinSpend: cardOfferMinSpend || undefined,
+      cashbackPercent: cashbackRate || undefined,
+      cashbackFixed: cashbackFixed || undefined,
+      portalName: portal || undefined
+    });
+  };
+  
+  // Recalculate deal when components change
+  const recalculateDeal = (components: DealComponents) => {
+    if (components.originalPrice <= 0) {
+      setDealCalculation(null);
+      return;
+    }
+    
+    const calc = calculateStackedDeal(components);
+    setDealCalculation(calc);
+    
+    // Update total value display
+    setReportPromotionForm(prev => ({
+      ...prev,
+      totalValue: `${Math.round(calc.effectiveDiscountPercent)}% off ($${calc.totalSavings.toFixed(2)} savings)`
+    }));
+  };
+
+  // Close report promotion modal
+  const closeReportPromotionModal = () => {
+    setPromotingReport(null);
+    setMatchingCardOffers([]);
+    setSelectedCardOffer(null);
+    setDealCalculation(null);
+    setReportPromotionForm({
+      title: '',
+      description: '',
+      totalValue: '',
+      cardOffer: '',
+      cardOfferBack: 0,
+      cardOfferMinSpend: 0,
+      cashback: '',
+      cashbackPercent: 0,
+      cashbackFixed: 0,
+      portalName: '',
+      promoCode: '',
+      signupPercent: 0,
+      signupFixed: 0,
+      validUntil: '',
+      priority: 1,
+      targetSpend: 0
+    });
+  };
+
+  // Publish user report as featured deal
+  const publishReportPromotion = async () => {
+    if (!promotingReport) return;
+    
+    try {
+      const merchantName = promotingReport.merchant || promotingReport.domain.replace(/\.(com|net|org)$/, '');
+      
+      // Determine stack type for better labeling
+      const hasCardOffer = !!reportPromotionForm.cardOffer;
+      const hasCashback = !!reportPromotionForm.cashback;
+      const hasPromo = !!reportPromotionForm.promoCode;
+      
+      let stackType = 'Deal';
+      let stackEmoji = '💰';
+      if (hasCardOffer && hasCashback && hasPromo) {
+        stackType = 'Triple Stack';
+        stackEmoji = '🔥🔥🔥';
+      } else if ((hasCardOffer && hasCashback) || (hasCardOffer && hasPromo) || (hasCashback && hasPromo)) {
+        stackType = 'Double Stack';
+        stackEmoji = '🔥🔥';
+      } else if (hasCardOffer || hasCashback || hasPromo) {
+        stackType = 'Stack';
+        stackEmoji = '🔥';
+      }
+      
+      // Build comprehensive stacking notes
+      let stackingNotes = '';
+      const stackParts: string[] = [];
+      if (hasCardOffer) stackParts.push(`💳 Card Offer: ${reportPromotionForm.cardOffer}`);
+      if (hasCashback) stackParts.push(`💰 Cashback: ${reportPromotionForm.cashback}`);
+      if (hasPromo) stackParts.push(`🏷️ Promo: ${reportPromotionForm.promoCode}`);
+      
+      if (stackParts.length > 1) {
+        stackingNotes = `**${stackEmoji} ${stackType} Opportunity!**\n\nCombine these savings:\n${stackParts.map(p => `• ${p}`).join('\n')}\n\nUse all together for maximum value!`;
+      } else if (stackParts.length === 1) {
+        stackingNotes = `**Stack Potential:** ${stackParts[0]}. Look for additional card offers or cashback portals to stack!`;
+      }
+      
+      const newDeal = {
+        title: reportPromotionForm.title,
+        description: reportPromotionForm.description,
+        merchant: merchantName,
+        totalValue: reportPromotionForm.totalValue,
+        components: {
+          cardOffer: reportPromotionForm.cardOffer,
+          cashback: reportPromotionForm.cashback,
+          promoCode: reportPromotionForm.promoCode
+        },
+        issuer: 'Both' as const,
+        validUntil: reportPromotionForm.validUntil || undefined,
+        active: true,
+        priority: reportPromotionForm.priority,
+        featuredPublishedAt: new Date().toISOString(),
+        stackType: stackType, // Add stack type for public display
+        // Mark as user-sourced with enhanced stacking info
+        aiSummary: {
+          headline: `${stackEmoji} ${reportPromotionForm.title}`,
+          intro: reportPromotionForm.description,
+          valueExplanation: `This ${stackType.toLowerCase()} was sourced from ${promotingReport.totalReports} community reports. Users have verified these savings at ${merchantName}.`,
+          stackingNotes: stackingNotes,
+          generatedAt: new Date().toISOString()
+        }
+      };
+      
+      await fetch('/api/featured', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDeal)
+      });
+      
+      await fetchDeals();
+      closeReportPromotionModal();
+      setActiveTab('featured');
+    } catch (error) {
+      console.error('Failed to publish report promotion:', error);
+      alert('Failed to publish report as featured deal');
+    }
   };
 
   return (
@@ -342,6 +727,16 @@ export default function AdminPage() {
             }`}
           >
             👥 User Reports ({crowdsourcedData.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'settings'
+                ? 'bg-indigo-500 text-white'
+                : 'bg-[#12121a] text-gray-400 hover:text-white'
+            }`}
+          >
+            ⚙️ Settings
           </button>
         </div>
 
@@ -626,8 +1021,50 @@ export default function AdminPage() {
             </div>
 
             {(() => {
+              // Helper function to match merchant name to crowdsourced domain data
+              const findCrowdsourcedForMerchant = (merchantName: string) => {
+                const normalized = merchantName.toLowerCase().replace(/[^a-z0-9]/g, '');
+                for (const report of crowdsourcedData) {
+                  const domainBase = report.domain.replace(/\.(com|net|org|co\.uk|io)$/, '').replace(/^www\./, '').replace(/[^a-z0-9]/g, '');
+                  if (normalized.includes(domainBase) || domainBase.includes(normalized)) {
+                    return report;
+                  }
+                  // Also check merchant field if available
+                  if (report.merchant) {
+                    const merchantNorm = report.merchant.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    if (normalized.includes(merchantNorm) || merchantNorm.includes(normalized)) {
+                      return report;
+                    }
+                  }
+                }
+                return null;
+              };
+
+              // Enhance offers with matched crowdsourced data
+              const enhancedOffers = offers.map(offer => {
+                // First check if offer already has crowdsourced data
+                if (offer.crowdsourced && (offer.crowdsourced.reportCount || offer.crowdsourced.cashbackRate || offer.crowdsourced.promoRate)) {
+                  return offer;
+                }
+                // Otherwise, try to match from crowdsourcedData
+                const matched = findCrowdsourcedForMerchant(offer.merchant);
+                if (matched) {
+                  return {
+                    ...offer,
+                    crowdsourced: {
+                      cashbackRate: matched.aggregated?.cashback?.avgRate,
+                      promoRate: matched.aggregated?.promo?.avgRate,
+                      portal: matched.aggregated?.cashback?.lastPortal,
+                      reportCount: matched.totalReports,
+                      lastReportAt: matched.lastReportAt,
+                    }
+                  };
+                }
+                return offer;
+              });
+
               // Sort offers: user-reported first, then by deal score
-              const sortedOffers = [...offers].sort((a, b) => {
+              const sortedOffers = [...enhancedOffers].sort((a, b) => {
                 const aHasReports = a.crowdsourced && (a.crowdsourced.reportCount || a.crowdsourced.cashbackRate || a.crowdsourced.promoRate);
                 const bHasReports = b.crowdsourced && (b.crowdsourced.reportCount || b.crowdsourced.cashbackRate || b.crowdsourced.promoRate);
                 
@@ -811,6 +1248,20 @@ export default function AdminPage() {
                               Last: {new Date(report.lastReportAt).toLocaleDateString()}
                             </div>
                           )}
+                          <div className="flex gap-2 ml-2">
+                            <button
+                              onClick={() => openReportPromotionModal(report)}
+                              className="px-3 py-1.5 text-xs bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors flex items-center gap-1"
+                            >
+                              ⭐ Promote
+                            </button>
+                            <button
+                              onClick={() => deleteUserReport(report.domain)}
+                              className="px-3 py-1.5 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors flex items-center gap-1"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -929,6 +1380,87 @@ export default function AdminPage() {
           </>
         )}
 
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-white">Settings</h1>
+                <p className="text-gray-400 mt-1">Configure API keys and preferences</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {/* OpenAI API Key Configuration */}
+              <div className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-2xl">🔑</span>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">OpenAI API Configuration</h2>
+                    <p className="text-sm text-gray-400">Required for AI article generation</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      API Key
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={openaiApiKey}
+                        onChange={(e) => setOpenaiApiKey(e.target.value)}
+                        placeholder="sk-..."
+                        className="flex-1 px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={saveApiKey}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+
+                  {openaiApiKey && (
+                    <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                      <span className="text-emerald-400">✓</span>
+                      <span className="text-sm text-emerald-400">
+                        API key configured ({openaiApiKey.substring(0, 7)}...{openaiApiKey.substring(openaiApiKey.length - 4)})
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <p className="text-sm text-gray-300 mb-2">
+                      <strong>How to get your API key:</strong>
+                    </p>
+                    <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
+                      <li>Visit <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">platform.openai.com/api-keys</a></li>
+                      <li>Sign in or create an account</li>
+                      <li>Click "Create new secret key"</li>
+                      <li>Copy the key and paste it above</li>
+                    </ol>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Your API key is stored locally in your browser and never sent to our servers except when generating articles.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Settings Section */}
+              <div className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
+                <h2 className="text-xl font-bold text-white mb-4">About</h2>
+                <div className="space-y-2 text-sm text-gray-400">
+                  <p>DealStackr Admin Dashboard</p>
+                  <p>Manage featured deals, promote offers, and configure AI article generation.</p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Promotion Modal */}
         {promotingOffer && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -949,6 +1481,53 @@ export default function AdminPage() {
               </div>
 
               <div className="p-6 space-y-6">
+                {/* OpenAI API Key Status */}
+                {!openaiApiKey && (
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">⚠️</span>
+                      <h3 className="font-semibold text-amber-400">OpenAI API Key Required</h3>
+                    </div>
+                    <p className="text-sm text-gray-400 mb-3">
+                      To generate AI articles, please configure your OpenAI API key in{' '}
+                      <button
+                        onClick={() => {
+                          closePromotionModal();
+                          setActiveTab('settings');
+                        }}
+                        className="text-blue-400 hover:underline"
+                      >
+                        Settings
+                      </button>
+                      .
+                    </p>
+                  </div>
+                )}
+                {openaiApiKey && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">✓</span>
+                        <div>
+                          <p className="text-sm font-medium text-emerald-400">OpenAI API Key Configured</p>
+                          <p className="text-xs text-gray-400">
+                            {openaiApiKey.substring(0, 7)}...{openaiApiKey.substring(openaiApiKey.length - 4)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          closePromotionModal();
+                          setActiveTab('settings');
+                        }}
+                        className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+                      >
+                        Change Key
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* User Reports Section - Show if offer has crowdsourced data */}
                 {promotingOffer.crowdsourced && (promotingOffer.crowdsourced.cashbackRate || promotingOffer.crowdsourced.promoRate || promotingOffer.crowdsourced.reportCount) && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
@@ -991,17 +1570,26 @@ export default function AdminPage() {
                 {/* AI Generation Section */}
                 <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-purple-400">✨ AI Summary Generator</h3>
-                    <button
-                      onClick={generateAISummary}
-                      disabled={generatingAI}
-                      className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors"
-                    >
-                      {generatingAI ? 'Generating...' : promotionForm.aiSummary ? 'Regenerate' : 'Generate AI Summary'}
-                    </button>
+                    <h3 className="font-semibold text-purple-400">✨ AI Article Generator</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={generateAISummary}
+                        disabled={generatingAI}
+                        className="px-4 py-2 bg-purple-500/50 text-purple-300 text-sm rounded-lg hover:bg-purple-500/70 disabled:opacity-50 transition-colors"
+                      >
+                        {generatingAI ? 'Generating...' : 'Quick Summary'}
+                      </button>
+                      <button
+                        onClick={generateArticle}
+                        disabled={generatingArticle || !openaiApiKey}
+                        className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors"
+                      >
+                        {generatingArticle ? 'Generating...' : 'Generate Full Article'}
+                      </button>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-400">
-                    Generate editorial content based on the deal data. You can edit the result before publishing.
+                    Generate editorial content using OpenAI. Full article includes headline, intro, value explanation, stacking notes, and expiration urgency.
                   </p>
                 </div>
 
@@ -1056,7 +1644,35 @@ export default function AdminPage() {
                           />
                         </div>
                       )}
+                      {promotionForm.aiSummary.expirationNote && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-2">Expiration Note</label>
+                          <textarea
+                            value={promotionForm.aiSummary.expirationNote}
+                            onChange={(e) => setPromotionForm({
+                              ...promotionForm,
+                              aiSummary: { ...promotionForm.aiSummary!, expirationNote: e.target.value }
+                            })}
+                            rows={2}
+                            className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none text-sm"
+                          />
+                        </div>
+                      )}
                     </>
+                  )}
+
+                  {/* Full Article Content Display */}
+                  {promotionForm.articleContent && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Full Article Content (Raw)</label>
+                      <textarea
+                        value={promotionForm.articleContent}
+                        onChange={(e) => setPromotionForm({ ...promotionForm, articleContent: e.target.value })}
+                        rows={8}
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none text-sm font-mono"
+                        placeholder="Full article content will appear here..."
+                      />
+                    </div>
                   )}
 
                   <div className="grid grid-cols-2 gap-4">
@@ -1076,6 +1692,29 @@ export default function AdminPage() {
                         min="1"
                         value={promotionForm.priority}
                         onChange={(e) => setPromotionForm({ ...promotionForm, priority: parseInt(e.target.value) })}
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Minimum Spend ($)</label>
+                      <input
+                        type="number"
+                        value={promotionForm.minSpend || ''}
+                        onChange={(e) => setPromotionForm({ ...promotionForm, minSpend: e.target.value ? parseFloat(e.target.value) : null })}
+                        placeholder="e.g., 150"
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Maximum Redemption ($)</label>
+                      <input
+                        type="number"
+                        value={promotionForm.maxRedemption || ''}
+                        onChange={(e) => setPromotionForm({ ...promotionForm, maxRedemption: e.target.value ? parseFloat(e.target.value) : null })}
+                        placeholder="e.g., 50"
                         className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
                       />
                     </div>
@@ -1116,6 +1755,378 @@ export default function AdminPage() {
                 <button
                   onClick={publishPromotion}
                   className="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  🚀 Publish to Top Deals
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* User Report Promotion Modal */}
+        {promotingReport && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-[#2a2a3a]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">🔥 Stack Deal Calculator</h2>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Build and calculate the full stacked deal value
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeReportPromotionModal}
+                    className="text-gray-400 hover:text-white transition-colors text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* User Report Summary */}
+                <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-3">
+                    👥 User Report Data
+                  </h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Merchant</p>
+                      <p className="text-white font-medium">{promotingReport.merchant || promotingReport.domain}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Reports</p>
+                      <p className="text-white font-medium">{promotingReport.totalReports}</p>
+                    </div>
+                    {promotingReport.aggregated?.cashback?.avgRate ? (
+                      <div>
+                        <p className="text-xs text-gray-500">💰 Cashback</p>
+                        <p className="text-emerald-400 font-medium">
+                          {promotingReport.aggregated.cashback.avgRate.toFixed(1)}% via {promotingReport.aggregated.cashback.lastPortal}
+                        </p>
+                      </div>
+                    ) : null}
+                    {promotingReport.aggregated?.promo?.avgRate || promotingReport.aggregated?.promo?.lastOffer ? (
+                      <div>
+                        <p className="text-xs text-gray-500">📧 Signup</p>
+                        <p className="text-amber-400 font-medium">
+                          {promotingReport.aggregated.promo?.avgRate 
+                            ? `${promotingReport.aggregated.promo.avgRate.toFixed(0)}% off` 
+                            : promotingReport.aggregated.promo?.lastOffer}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Matching Card Offers */}
+                {matchingCardOffers.length > 0 && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-3">
+                      💳 Matching Card Offers ({matchingCardOffers.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {matchingCardOffers.map((offer, idx) => (
+                        <label 
+                          key={offer.id || idx}
+                          className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            selectedCardOffer?.id === offer.id 
+                              ? 'bg-blue-500/20 border border-blue-500/50' 
+                              : 'bg-[#0a0a0f] border border-[#2a2a3a] hover:border-blue-500/30'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="cardOffer"
+                            checked={selectedCardOffer?.id === offer.id}
+                            onChange={() => {
+                              setSelectedCardOffer(offer);
+                              const parsed = parseCardOffer(offer.offer_value);
+                              setReportPromotionForm(prev => ({
+                                ...prev,
+                                cardOffer: offer.offer_value,
+                                cardOfferBack: parsed.back || 0,
+                                cardOfferMinSpend: parsed.minSpend || 0,
+                                targetSpend: parsed.minSpend || prev.targetSpend
+                              }));
+                              recalculateDeal({
+                                originalPrice: parsed.minSpend || reportPromotionForm.targetSpend,
+                                signupDiscountPercent: reportPromotionForm.signupPercent || undefined,
+                                cardOfferBack: parsed.back || undefined,
+                                cardOfferMinSpend: parsed.minSpend || undefined,
+                                cashbackPercent: reportPromotionForm.cashbackPercent || undefined,
+                                cashbackFixed: reportPromotionForm.cashbackFixed || undefined,
+                                portalName: reportPromotionForm.portalName || undefined
+                              });
+                            }}
+                            className="accent-blue-500"
+                          />
+                          <div className="flex-1">
+                            <p className="text-white font-medium">{offer.offer_value}</p>
+                            <p className="text-xs text-gray-500">{offer.issuer} • {offer.card_name} • Expires {offer.expires_at ? new Date(offer.expires_at).toLocaleDateString() : 'N/A'}</p>
+                          </div>
+                          {offer.deal_score && (
+                            <span className={`px-2 py-1 text-xs rounded-lg ${
+                              offer.deal_score.finalScore >= 80 ? 'bg-amber-500/20 text-amber-400' :
+                              offer.deal_score.finalScore >= 60 ? 'bg-emerald-500/20 text-emerald-400' :
+                              'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {offer.deal_score.finalScore}
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Deal Calculator Inputs */}
+                <div className="bg-[#0a0a0f] border border-[#2a2a3a] rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">
+                    🧮 Deal Calculator
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Target Spend ($)</label>
+                      <input
+                        type="number"
+                        value={reportPromotionForm.targetSpend}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setReportPromotionForm(prev => ({ ...prev, targetSpend: val }));
+                          recalculateDeal({
+                            originalPrice: val,
+                            signupDiscountPercent: reportPromotionForm.signupPercent || undefined,
+                            cardOfferBack: reportPromotionForm.cardOfferBack || undefined,
+                            cardOfferMinSpend: reportPromotionForm.cardOfferMinSpend || undefined,
+                            cashbackPercent: reportPromotionForm.cashbackPercent || undefined,
+                            cashbackFixed: reportPromotionForm.cashbackFixed || undefined,
+                            portalName: reportPromotionForm.portalName || undefined
+                          });
+                        }}
+                        className="w-full px-3 py-2 bg-[#12121a] border border-[#2a2a3a] rounded-lg text-white text-lg font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Signup Discount (%)</label>
+                      <input
+                        type="number"
+                        value={reportPromotionForm.signupPercent || ''}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setReportPromotionForm(prev => ({ ...prev, signupPercent: val }));
+                          recalculateDeal({
+                            originalPrice: reportPromotionForm.targetSpend,
+                            signupDiscountPercent: val || undefined,
+                            cardOfferBack: reportPromotionForm.cardOfferBack || undefined,
+                            cardOfferMinSpend: reportPromotionForm.cardOfferMinSpend || undefined,
+                            cashbackPercent: reportPromotionForm.cashbackPercent || undefined,
+                            cashbackFixed: reportPromotionForm.cashbackFixed || undefined,
+                            portalName: reportPromotionForm.portalName || undefined
+                          });
+                        }}
+                        placeholder="e.g., 20"
+                        className="w-full px-3 py-2 bg-[#12121a] border border-[#2a2a3a] rounded-lg text-white"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Card Offer Back ($)</label>
+                      <input
+                        type="number"
+                        value={reportPromotionForm.cardOfferBack || ''}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setReportPromotionForm(prev => ({ ...prev, cardOfferBack: val }));
+                          recalculateDeal({
+                            originalPrice: reportPromotionForm.targetSpend,
+                            signupDiscountPercent: reportPromotionForm.signupPercent || undefined,
+                            cardOfferBack: val || undefined,
+                            cardOfferMinSpend: reportPromotionForm.cardOfferMinSpend || undefined,
+                            cashbackPercent: reportPromotionForm.cashbackPercent || undefined,
+                            cashbackFixed: reportPromotionForm.cashbackFixed || undefined,
+                            portalName: reportPromotionForm.portalName || undefined
+                          });
+                        }}
+                        placeholder="50"
+                        className="w-full px-3 py-2 bg-[#12121a] border border-[#2a2a3a] rounded-lg text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Min Spend ($)</label>
+                      <input
+                        type="number"
+                        value={reportPromotionForm.cardOfferMinSpend || ''}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setReportPromotionForm(prev => ({ ...prev, cardOfferMinSpend: val }));
+                        }}
+                        placeholder="150"
+                        className="w-full px-3 py-2 bg-[#12121a] border border-[#2a2a3a] rounded-lg text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Cashback (%)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={reportPromotionForm.cashbackPercent || ''}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setReportPromotionForm(prev => ({ ...prev, cashbackPercent: val }));
+                          recalculateDeal({
+                            originalPrice: reportPromotionForm.targetSpend,
+                            signupDiscountPercent: reportPromotionForm.signupPercent || undefined,
+                            cardOfferBack: reportPromotionForm.cardOfferBack || undefined,
+                            cardOfferMinSpend: reportPromotionForm.cardOfferMinSpend || undefined,
+                            cashbackPercent: val || undefined,
+                            cashbackFixed: reportPromotionForm.cashbackFixed || undefined,
+                            portalName: reportPromotionForm.portalName || undefined
+                          });
+                        }}
+                        placeholder="2"
+                        className="w-full px-3 py-2 bg-[#12121a] border border-[#2a2a3a] rounded-lg text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deal Calculation Result */}
+                {dealCalculation && (
+                  <div className="bg-gradient-to-br from-emerald-900/30 to-green-900/30 border border-emerald-500/30 rounded-xl p-4">
+                    <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-3">
+                      ✨ Calculated Deal Value
+                    </h3>
+                    
+                    <div className="space-y-2 mb-4">
+                      {dealCalculation.breakdown.map((line, idx) => (
+                        <p key={idx} className="text-sm text-gray-300">{line}</p>
+                      ))}
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-emerald-500/20">
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500">Total Savings</p>
+                        <p className="text-2xl font-bold text-emerald-400">${dealCalculation.totalSavings.toFixed(2)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500">Final Cost</p>
+                        <p className="text-2xl font-bold text-white">${dealCalculation.finalCost.toFixed(2)}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500">Effective Discount</p>
+                        <p className="text-2xl font-bold text-amber-400">{Math.round(dealCalculation.effectiveDiscountPercent)}% off</p>
+                      </div>
+                    </div>
+                    
+                    <p className="text-center text-sm text-emerald-300 mt-4">
+                      💰 {dealCalculation.summary}
+                    </p>
+                  </div>
+                )}
+
+                {/* Form Fields */}
+                <div className="space-y-4 border-t border-[#2a2a3a] pt-6">
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+                    📝 Featured Deal Details
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Title *</label>
+                    <input
+                      type="text"
+                      value={reportPromotionForm.title}
+                      onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, title: e.target.value })}
+                      placeholder="e.g., Mizzen+Main Triple Stack"
+                      className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Description</label>
+                    <textarea
+                      value={reportPromotionForm.description}
+                      onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, description: e.target.value })}
+                      placeholder="Describe the deal stack..."
+                      rows={2}
+                      className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Card Offer (optional)</label>
+                      <input
+                        type="text"
+                        value={reportPromotionForm.cardOffer}
+                        onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, cardOffer: e.target.value })}
+                        placeholder="e.g., $50 back on $250"
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Cashback Portal</label>
+                      <input
+                        type="text"
+                        value={reportPromotionForm.cashback}
+                        onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, cashback: e.target.value })}
+                        placeholder="e.g., 2% via Rakuten"
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Promo Code (optional)</label>
+                      <input
+                        type="text"
+                        value={reportPromotionForm.promoCode}
+                        onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, promoCode: e.target.value })}
+                        placeholder="e.g., WELCOME15"
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Valid Until (optional)</label>
+                      <input
+                        type="date"
+                        value={reportPromotionForm.validUntil}
+                        onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, validUntil: e.target.value })}
+                        className="w-full px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Priority (1 = highest)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={reportPromotionForm.priority}
+                      onChange={(e) => setReportPromotionForm({ ...reportPromotionForm, priority: parseInt(e.target.value) || 1 })}
+                      className="w-24 px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-[#2a2a3a] flex justify-end gap-4">
+                <button
+                  onClick={closeReportPromotionModal}
+                  className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={publishReportPromotion}
+                  disabled={!reportPromotionForm.title || !reportPromotionForm.totalValue}
+                  className="px-6 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   🚀 Publish to Top Deals
                 </button>

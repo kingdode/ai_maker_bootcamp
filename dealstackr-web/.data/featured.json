@@ -1,1 +1,56 @@
-[]
+[
+  {
+    "title": "Cotopaxi Double Stack",
+    "description": "🔥🔥 Double Stack! $25 back (25%) on $100+ spend  and 20% off with email signup at Cotopaxi.",
+    "merchant": "Cotopaxi",
+    "totalValue": "41% off ($49.00 savings)",
+    "components": {
+      "cardOffer": "$25 back (25%) on $100+ spend",
+      "cashback": "",
+      "promoCode": "20% off with signup"
+    },
+    "issuer": "Both",
+    "validUntil": "2026-02-17",
+    "active": true,
+    "priority": 1,
+    "featuredPublishedAt": "2026-01-14T22:22:00.181Z",
+    "stackType": "Double Stack",
+    "aiSummary": {
+      "headline": "🔥🔥 Cotopaxi Double Stack",
+      "intro": "🔥🔥 Double Stack! $25 back (25%) on $100+ spend  and 20% off with email signup at Cotopaxi.",
+      "valueExplanation": "This double stack was sourced from 1 community reports. Users have verified these savings at Cotopaxi.",
+      "stackingNotes": "**🔥🔥 Double Stack Opportunity!**\n\nCombine these savings:\n• 💳 Card Offer: $25 back (25%) on $100+ spend\n• 🏷️ Promo: 20% off with signup\n\nUse all together for maximum value!",
+      "generatedAt": "2026-01-14T22:22:00.181Z"
+    },
+    "id": "1768429320222",
+    "createdAt": "2026-01-14T22:22:00.222Z",
+    "updatedAt": "2026-01-14T22:22:00.222Z"
+  },
+  {
+    "title": "Rag & Bone",
+    "description": "Stack opportunity at Shop Men’s Clothing & Outfits. 20% off with signup",
+    "merchant": "Shop Clothing & Outfits",
+    "totalValue": "44% off ($146.28 savings)",
+    "components": {
+      "cardOffer": "75 off 275",
+      "cashback": "2.5% via Rakuten",
+      "promoCode": "20% off with signup"
+    },
+    "issuer": "Amex",
+    "active": true,
+    "priority": 1,
+    "featuredPublishedAt": "2026-01-14T22:39:47.793Z",
+    "stackType": "Triple Stack",
+    "aiSummary": {
+      "headline": "🔥🔥🔥 Shop Men’s Clothing & Outfits Stack",
+      "intro": "Stack opportunity at Shop Men’s Clothing & Outfits. 20% off with signup",
+      "valueExplanation": "This triple stack was sourced from 2 community reports. Users have verified these savings at Shop Men’s Clothing & Outfits.",
+      "stackingNotes": "**🔥🔥🔥 Triple Stack Opportunity!**\n\nCombine these savings:\n• 💳 Card Offer: 75 off 275\n• 💰 Cashback: 2.5% via Rakuten\n• 🏷️ Promo: 20% off with signup\n\nUse all together for maximum value!",
+      "generatedAt": "2026-01-14T22:39:47.793Z"
+    },
+    "id": "1768430387823",
+    "createdAt": "2026-01-14T22:39:47.823Z",
+    "updatedAt": "2026-01-14T22:40:21.850Z",
+    "validUntil": ""
+  }
+]
