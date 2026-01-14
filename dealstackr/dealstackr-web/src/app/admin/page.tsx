@@ -355,7 +355,6 @@ export default function AdminPage() {
   const saveApiKey = () => {
     if (openaiApiKey) {
       localStorage.setItem('openai_api_key', openaiApiKey);
-      setShowApiKeyInput(false);
       alert('API key saved successfully!');
     }
   };
