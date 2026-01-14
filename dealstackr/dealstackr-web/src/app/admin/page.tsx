@@ -236,6 +236,7 @@ export default function AdminPage() {
       minSpend: minSpend,
       maxRedemption: maxRedemption,
       aiSummary: null,
+      merchantImages: [],
       articleContent: ''
     });
   };
@@ -254,6 +255,7 @@ export default function AdminPage() {
       minSpend: null,
       maxRedemption: null,
       aiSummary: null,
+      merchantImages: [],
       articleContent: ''
     });
     setArticleContent('');
