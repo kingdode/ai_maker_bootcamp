@@ -24,12 +24,12 @@
     },
     "id": "1768429320222",
     "createdAt": "2026-01-14T22:22:00.222Z",
-    "updatedAt": "2026-01-14T22:22:00.222Z"
+    "updatedAt": "2026-01-15T01:55:04.606Z"
   },
   {
     "title": "Rag & Bone",
     "description": "Stack opportunity at Shop Men’s Clothing & Outfits. 20% off with signup",
-    "merchant": "Shop Clothing & Outfits",
+    "merchant": "Rag & Bone",
     "totalValue": "44% off ($146.28 savings)",
     "components": {
       "cardOffer": "75 off 275",
@@ -39,7 +39,7 @@
     "issuer": "Amex",
     "active": true,
     "priority": 1,
-    "featuredPublishedAt": "2026-01-14T22:39:47.793Z",
+    "featuredPublishedAt": "2026-01-15T01:28:09.179Z",
     "stackType": "Triple Stack",
     "aiSummary": {
       "headline": "🔥🔥🔥 Shop Men’s Clothing & Outfits Stack",
@@ -50,7 +50,47 @@
     },
     "id": "1768430387823",
     "createdAt": "2026-01-14T22:39:47.823Z",
-    "updatedAt": "2026-01-14T22:40:21.850Z",
+    "updatedAt": "2026-01-15T01:28:09.380Z",
     "validUntil": ""
+  },
+  {
+    "title": "Unlock 100% Cash Back on Calm Subscriptions with Chase Sapphire Reserve",
+    "description": "If you're looking to enhance your mental wellness while saving money, there's never been a better time to explore the benefits of Calm with the Chase Sapphire Reserve card. This innovative offer provides a remarkable 100% cash back on your Calm subscription, making mindfulness more accessible than ever.",
+    "merchant": "Calm",
+    "totalValue": "100% cash back",
+    "components": {
+      "cardOffer": "100% cash back",
+      "cashback": "2$ via Rakuten",
+      "promoCode": ""
+    },
+    "issuer": "Chase",
+    "minSpend": 69.99,
+    "maxRedemption": 71.99,
+    "active": true,
+    "priority": 1,
+    "sourceOfferId": "1768429141711-70s1dxxb1",
+    "aiSummary": {
+      "headline": "Unlock 100% Cash Back on Calm Subscriptions with Chase Sapphire Reserve",
+      "intro": "If you're looking to enhance your mental wellness while saving money, there's never been a better time to explore the benefits of Calm with the Chase Sapphire Reserve card. This innovative offer provides a remarkable 100% cash back on your Calm subscription, making mindfulness more accessible than ever.",
+      "vendorBackground": "Calm is a leading digital wellness platform dedicated to improving mental health and promoting relaxation through guided meditations, sleep stories, and mindfulness exercises. Founded in 2012, Calm has quickly become a favorite among those seeking to reduce stress and enhance their overall well-being. With a user-friendly app, Calm caters to a diverse audience ranging from busy professionals to students and even parents looking to instill mindfulness in their families. The platform offers various subscription plans, including annual memberships and free resources, making it an appealing choice for anyone looking to invest in their mental health.",
+      "valueExplanation": "This Chase Sapphire Reserve offer provides a compelling opportunity for consumers to save on their Calm subscription. Typically, an annual Calm subscription costs around $69.99, meaning you could save the full amount with this cash back offer. This translates to an incredible 100% savings, allowing you to access high-quality guided meditations and sleep stories without spending a dime. For example, if you were to purchase the premium subscription, your investment would usually yield countless hours of calming content, but with this deal, you can get it all for free. This kind of value is rare in the wellness space, making it an attractive proposition for both new and existing Calm users.",
+      "dealMerits": "Now is an excellent time to take advantage of this offer, especially as we move into a season often characterized by stress and busyness. The 100% cash back incentive is a standout feature, especially when compared to typical promotional offers that may only provide a fraction of this value. This deal is particularly beneficial for anyone looking to incorporate mindfulness into their daily routine, including those who may have considered trying Calm but were hesitant about the cost. Additionally, this cash back offer stands out as a unique way to support your mental health journey without impacting your budget.",
+      "howToRedeem": [
+        "Log in to your Chase account and navigate to the offers section.",
+        "Search for the Calm offer and click 'Add to Card' to activate it.",
+        "Visit Calm's website or download the mobile app to subscribe.",
+        "Select the desired subscription plan and complete your purchase using your activated Chase Sapphire Reserve card.",
+        "Keep a record of your transaction and monitor your account for the cash back credit.",
+        "Expect the cash back to post within 1-2 billing cycles after your purchase."
+      ],
+      "stackingNotes": "This offer can potentially be stacked with other promotions or discounts offered by Calm, especially for first-time subscribers or seasonal sales. Always check the Calm website for additional deals that may complement your savings.",
+      "expirationNote": "Be sure to act quickly, as this offer may be time-sensitive and could expire soon. Check your Chase account regularly for updates or any changes to the promotion."
+    },
+    "featuredPublishedAt": "2026-01-15T01:51:05.575Z",
+    "dealScore": 32,
+    "stackType": "Double Stack",
+    "id": "1768441865918",
+    "createdAt": "2026-01-15T01:51:05.918Z",
+    "updatedAt": "2026-01-15T01:51:05.918Z"
   }
 ]

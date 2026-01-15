@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: 'You are a professional financial content writer specializing in credit card deals and savings opportunities. Write engaging, consumer-friendly articles that highlight the value of credit card offers. Be concise, accurate, and avoid overly salesy language.'
+            content: 'You are an expert financial content writer specializing in credit card rewards, cashback deals, and shopping savings strategies. Write comprehensive, well-researched editorial articles that educate consumers about credit card offers and help them maximize their savings. Your writing should be thorough, accurate, engaging, and consumer-friendly. Provide detailed explanations, real-world examples, and actionable advice. Maintain a professional yet approachable tone that builds trust with readers.'
           },
           {
             role: 'user',
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 2500
       })
     });
 
@@ -173,26 +173,40 @@ CARD: ${issuer}${cardName ? ` ${cardName}` : ''}`;
     prompt += `\nSTACK TYPE: ${stackType}`;
   }
 
-  prompt += `\n\nWrite a CONCISE editorial summary with the following structure:
+  prompt += `\n\nWrite a comprehensive, engaging editorial article with the following structure:
 
-1. HEADLINE: Catchy headline (max 60 characters)
+1. HEADLINE: Catchy, compelling headline (max 80 characters) that captures the deal's value
 
-2. INTRO: 1-2 sentences introducing the deal
+2. INTRO: 3-4 sentences introducing the deal, setting the stage for readers. Make it engaging and highlight the key benefit.
 
-3. VENDOR BACKGROUND: 2-3 sentences about what ${merchant} sells and who shops there
+3. VENDOR BACKGROUND: 4-6 sentences about what ${merchant} is known for, their product categories, typical price points, and their target customer base. Paint a picture of the shopping experience.
 
-4. VALUE EXPLANATION: 2-3 sentences explaining the savings (include the math)
+4. VALUE EXPLANATION: 5-7 sentences explaining the savings in detail. Include:
+   - The specific math of the savings
+   - Real-world purchase scenarios
+   - How much a typical shopper might save
+   - Comparison to regular pricing or other offers
 
-5. DEAL MERITS: 2-3 sentences on why this deal is special
+5. DEAL MERITS: 4-6 sentences on what makes this deal exceptional. Cover:
+   - Unique aspects of this particular offer
+   - Why now is a good time to take advantage
+   - Who would benefit most from this deal
+   - Any standout features or benefits
 
-6. HOW TO REDEEM: 3-4 brief bullet points on how to use this offer
+6. HOW TO REDEEM: Detailed step-by-step instructions (5-7 bullet points) covering:
+   - Exact steps to activate the offer
+   - Card requirements and enrollment process
+   - Purchase requirements and timelines
+   - How to track and verify the credit/cashback
+   - Best practices for maximizing value
 
-7. STACKING NOTES: ${cashback || promoCode ? '1-2 sentences on combining with cashback/promos' : 'Skip if not applicable'}
+7. STACKING NOTES: ${cashback || promoCode ? '3-5 sentences on how to combine this with other offers. Include specific portal recommendations, timing strategies, and total potential savings when stacked.' : 'Skip if not applicable'}
 
-8. EXPIRATION NOTE: ${expiresAt ? '1 sentence about the deadline' : 'Skip if not applicable'}
+8. EXPIRATION NOTE: ${expiresAt ? '2-3 sentences about the deadline, urgency, and recommended action timeline.' : 'Skip if not applicable'}
 
-IMPORTANT: Keep it SHORT and punchy. Total length should be ~200-300 words max.
-Tone: Friendly, helpful, not salesy.
+IMPORTANT: Write in a detailed, informative style. This should be a comprehensive guide.
+Target length: 500-700 words total.
+Tone: Professional yet friendly, informative without being salesy, enthusiastic about savings.
 
 Format: Return as JSON with keys: headline, intro, vendorBackground, valueExplanation, dealMerits, howToRedeem, stackingNotes (optional), expirationNote (optional)`;
 
