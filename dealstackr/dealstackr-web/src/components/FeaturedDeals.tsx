@@ -79,8 +79,8 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
       
       {/* Horizontal Scrollable Grid */}
       <div className="relative -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="overflow-x-auto overflow-y-visible pb-6 pt-4 scrollbar-hide">
-          <div className="flex gap-6 min-w-max md:grid md:grid-cols-2 lg:grid-cols-3 md:min-w-0">
+        <div className="overflow-x-auto overflow-y-visible pb-8 pt-6 scrollbar-hide">
+          <div className="flex gap-8 min-w-max md:grid md:grid-cols-2 lg:grid-cols-3 md:min-w-0 md:gap-6">
         {deals.map((deal, index) => {
           const expiry = formatExpiry(deal.validUntil);
           const scoreBadge = getScoreBadge(deal.dealScore);
@@ -88,27 +88,28 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
           const stackBadge = getStackBadge(stackType);
           
           return (
-            <div key={deal.id} className="relative w-[380px] md:w-auto flex-shrink-0">
+            <div key={deal.id} className="relative w-[380px] md:w-auto flex-shrink-0 pt-2 pl-2">
+              {/* Stack Type Badge - positioned outside Link for visibility */}
+              {stackBadge && (
+                <div className={`absolute -top-1 left-0 px-3 py-1 text-xs font-bold rounded-full shadow-lg z-20 ${stackBadge.class}`}>
+                  {stackBadge.emoji} {stackBadge.label}
+                </div>
+              )}
+              
+              {index === 0 && (
+                <div className="absolute -top-1 right-0 px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold rounded-full shadow-lg z-20">
+                  ⭐ TOP PICK
+                </div>
+              )}
+              
               <Link
                 href={`/deals/${deal.id}`}
-                className={`relative group card-glow rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer block ${
+                className={`relative group card-glow rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer block mt-4 ${
                   index === 0 
                     ? 'bg-gradient-to-br from-indigo-900/50 to-purple-900/50 border-indigo-500/30 pulse-glow' 
                     : 'bg-[var(--card)] border-[var(--border)] hover:border-indigo-500/50'
                 }`}
               >
-                {/* Stack Type Badge */}
-                {stackBadge && (
-                  <div className={`absolute -top-3 -left-3 px-3 py-1 text-xs font-bold rounded-full shadow-lg z-10 ${stackBadge.class}`}>
-                    {stackBadge.emoji} {stackBadge.label}
-                  </div>
-                )}
-                
-                {index === 0 && (
-                  <div className="absolute -top-3 -right-3 px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-bold rounded-full shadow-lg z-10">
-                    ⭐ TOP PICK
-                  </div>
-                )}
               
               <div className="p-6">
                 {/* Header */}
