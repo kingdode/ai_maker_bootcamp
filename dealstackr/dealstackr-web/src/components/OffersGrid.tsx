@@ -279,35 +279,42 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                     <td className="px-4 py-4">
                       {offer.crowdsourced ? (
                         <div className="flex flex-col gap-1">
-                          {/* Rakuten Label */}
-                          {offer.crowdsourced.portal?.toLowerCase() === 'rakuten' && offer.crowdsourced.cashbackRate && (
+                          {/* Rakuten Label - Percent or Fixed */}
+                          {offer.crowdsourced.portal?.toLowerCase() === 'rakuten' && (offer.crowdsourced.cashbackRate || offer.crowdsourced.cashbackFixed) && (
                             <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-[#eb0029] text-white">
-                              Rakuten {offer.crowdsourced.cashbackRate}%
+                              Rakuten {offer.crowdsourced.cashbackFixed 
+                                ? `$${offer.crowdsourced.cashbackFixed}` 
+                                : `${offer.crowdsourced.cashbackRate}%`}
                             </span>
                           )}
                           
-                          {/* Honey Label */}
-                          {offer.crowdsourced.portal?.toLowerCase() === 'honey' && offer.crowdsourced.cashbackRate && (
+                          {/* Honey Label - Percent or Fixed */}
+                          {offer.crowdsourced.portal?.toLowerCase() === 'honey' && (offer.crowdsourced.cashbackRate || offer.crowdsourced.cashbackFixed) && (
                             <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-amber-500 text-white">
-                              Honey {offer.crowdsourced.cashbackRate}%
+                              Honey {offer.crowdsourced.cashbackFixed 
+                                ? `$${offer.crowdsourced.cashbackFixed}` 
+                                : `${offer.crowdsourced.cashbackRate}%`}
                             </span>
                           )}
                           
                           {/* Other Cashback Portal Label */}
-                          {offer.crowdsourced.cashbackRate && 
+                          {(offer.crowdsourced.cashbackRate || offer.crowdsourced.cashbackFixed) && 
                            offer.crowdsourced.portal?.toLowerCase() !== 'rakuten' && 
                            offer.crowdsourced.portal?.toLowerCase() !== 'honey' && (
                             <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-emerald-500 text-white">
-                              {offer.crowdsourced.portal || 'Cashback'} {offer.crowdsourced.cashbackRate}%
+                              {offer.crowdsourced.portal || 'Cashback'} {offer.crowdsourced.cashbackFixed 
+                                ? `$${offer.crowdsourced.cashbackFixed}` 
+                                : `${offer.crowdsourced.cashbackRate}%`}
                             </span>
                           )}
                           
-                          {/* Email Signup Label */}
+                          {/* Email Signup Label - with promo details */}
                           {(offer.crowdsourced.promoRate || offer.crowdsourced.promoText) && (
-                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-purple-500 text-white max-w-[140px] truncate">
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-purple-500 text-white max-w-[140px] truncate" 
+                                  title={offer.crowdsourced.promoText || ''}>
                               Email {offer.crowdsourced.promoRate 
-                                ? `${offer.crowdsourced.promoRate}%` 
-                                : (offer.crowdsourced.promoText ? 'Offer' : '')}
+                                ? `${offer.crowdsourced.promoRate}%${offer.crowdsourced.promoText ? '+' : ''}` 
+                                : (offer.crowdsourced.promoText || 'Offer')}
                             </span>
                           )}
                         </div>

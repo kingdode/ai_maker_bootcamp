@@ -285,13 +285,39 @@ export default function AdminPage() {
     const maxRedemptionMatch = offer.offer_value.match(/(?:up\s+to|max(?:imum)?|maximum)\s*\$(\d+(?:,\d{3})*(?:\.\d+)?)/i);
     const maxRedemption = maxRedemptionMatch ? parseFloat(maxRedemptionMatch[1].replace(/,/g, '')) : null;
     
+    // Build cashback string from crowdsourced data
+    let cashbackText = '';
+    if (offer.crowdsourced?.cashbackType === 'fixed' && offer.crowdsourced?.cashbackFixed) {
+      cashbackText = `$${offer.crowdsourced.cashbackFixed} back via ${offer.crowdsourced.portal || 'cashback portal'}`;
+    } else if (offer.crowdsourced?.cashbackRate) {
+      cashbackText = `${offer.crowdsourced.cashbackRate}% via ${offer.crowdsourced.portal || 'cashback portal'}`;
+    }
+    
+    // Build promo string from crowdsourced data
+    let promoText = '';
+    if (offer.crowdsourced?.promoRate) {
+      promoText = `${offer.crowdsourced.promoRate}% off`;
+      if (offer.crowdsourced.promoText) {
+        promoText += ` + ${offer.crowdsourced.promoText}`;
+      }
+    } else if (offer.crowdsourced?.promoText) {
+      promoText = offer.crowdsourced.promoText;
+    }
+    
+    // Determine stack type for title
+    const hasCard = !!offer.offer_value;
+    const hasCashback = !!cashbackText;
+    const hasPromo = !!promoText;
+    const stackCount = [hasCard, hasCashback, hasPromo].filter(Boolean).length;
+    const stackLabel = stackCount >= 3 ? '🔥 Triple Stack' : stackCount === 2 ? '🔥 Double Stack' : 'Deal';
+    
     setPromotionForm({
-      title: `${offer.merchant} Deal`,
-      description: `${offer.offer_value} at ${offer.merchant}`,
+      title: `${stackLabel}: ${offer.merchant}`,
+      description: `${offer.offer_value} at ${offer.merchant}${cashbackText ? ` + ${cashbackText}` : ''}${promoText ? ` + ${promoText}` : ''}`,
       totalValue: offer.offer_value,
       cardOffer: offer.offer_value,
-      cashback: offer.crowdsourced?.cashbackRate ? `${offer.crowdsourced.cashbackRate}% via ${offer.crowdsourced.portal || 'cashback portal'}` : '',
-      promoCode: '',
+      cashback: cashbackText,
+      promoCode: promoText,
       validUntil: offer.expires_at ? offer.expires_at.split('T')[0] : '',
       priority: 1,
       minSpend: minSpend,
@@ -424,6 +450,13 @@ export default function AdminPage() {
     if (!promotingOffer) return;
     
     try {
+      // Calculate stack type based on components
+      const hasCard = !!promotionForm.cardOffer;
+      const hasCashback = !!promotionForm.cashback;
+      const hasPromo = !!promotionForm.promoCode;
+      const stackCount = [hasCard, hasCashback, hasPromo].filter(Boolean).length;
+      const stackType = stackCount >= 3 ? 'Triple Stack' : stackCount === 2 ? 'Double Stack' : stackCount === 1 ? 'Stack' : 'Deal';
+      
       const newDeal = {
         title: promotionForm.title,
         description: promotionForm.description,
@@ -444,7 +477,8 @@ export default function AdminPage() {
         aiSummary: promotionForm.aiSummary || undefined,
         merchantImages: promotionForm.merchantImages && promotionForm.merchantImages.length > 0 ? promotionForm.merchantImages : undefined,
         featuredPublishedAt: new Date().toISOString(),
-        dealScore: promotingOffer.deal_score?.finalScore
+        dealScore: promotingOffer.deal_score?.finalScore,
+        stackType: stackType as 'Triple Stack' | 'Double Stack' | 'Stack' | 'Deal'
       };
       
       await fetch('/api/featured', {
@@ -1184,11 +1218,22 @@ export default function AdminPage() {
                 // Otherwise, try to match from crowdsourcedData
                 const matched = findCrowdsourcedForMerchant(offer.merchant);
                 if (matched) {
+                  // Determine cashback type from reports (check if any report has fixedAmount)
+                  const hasFixedCashback = matched.reports?.some(r => r.type === 'cashback' && r.fixedAmount);
+                  
+                  // Extract promo text from last promo report
+                  const lastPromoReport = matched.reports?.filter(r => r.type === 'promo').sort((a, b) => 
+                    new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime()
+                  )[0];
+                  
                   return {
                     ...offer,
                     crowdsourced: {
                       cashbackRate: matched.aggregated?.cashback?.avgRate,
+                      cashbackFixed: matched.aggregated?.cashback?.avgFixedAmount,
+                      cashbackType: hasFixedCashback ? 'fixed' as const : 'percent' as const,
                       promoRate: matched.aggregated?.promo?.avgRate,
+                      promoText: lastPromoReport?.rateDisplay || matched.aggregated?.promo?.lastOffer,
                       portal: matched.aggregated?.cashback?.lastPortal,
                       reportCount: matched.totalReports,
                       lastReportAt: matched.lastReportAt,
@@ -1268,17 +1313,29 @@ export default function AdminPage() {
                               <td className="px-6 py-4">
                                 {hasUserReports ? (
                                   <div className="flex flex-col gap-1">
-                                    {offer.crowdsourced?.cashbackRate && (
+                                    {/* Cashback - either percent or fixed amount */}
+                                    {offer.crowdsourced?.cashbackType === 'fixed' && offer.crowdsourced?.cashbackFixed ? (
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">
-                                        💰 {offer.crowdsourced.cashbackRate}% {offer.crowdsourced.portal || ''}
+                                        💰 ${offer.crowdsourced.cashbackFixed} back via {offer.crowdsourced.portal || 'cashback'}
                                       </span>
-                                    )}
-                                    {offer.crowdsourced?.promoRate && (
+                                    ) : offer.crowdsourced?.cashbackRate ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-emerald-500/20 text-emerald-400 rounded-full">
+                                        💰 {offer.crowdsourced.cashbackRate}% via {offer.crowdsourced.portal || 'cashback'}
+                                      </span>
+                                    ) : null}
+                                    
+                                    {/* Promo - either percent discount or text */}
+                                    {offer.crowdsourced?.promoRate ? (
                                       <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded-full">
-                                        🏷️ {offer.crowdsourced.promoRate}% off
+                                        🏷️ {offer.crowdsourced.promoRate}% off{offer.crowdsourced.promoText ? ` + ${offer.crowdsourced.promoText}` : ''}
                                       </span>
-                                    )}
-                                    {offer.crowdsourced?.reportCount && !offer.crowdsourced?.cashbackRate && !offer.crowdsourced?.promoRate && (
+                                    ) : offer.crowdsourced?.promoText ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded-full">
+                                        🏷️ {offer.crowdsourced.promoText}
+                                      </span>
+                                    ) : null}
+                                    
+                                    {offer.crowdsourced?.reportCount && !offer.crowdsourced?.cashbackRate && !offer.crowdsourced?.cashbackFixed && !offer.crowdsourced?.promoRate && !offer.crowdsourced?.promoText && (
                                       <span className="text-xs text-purple-400">
                                         👥 {offer.crowdsourced.reportCount} reports
                                       </span>
