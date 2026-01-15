@@ -88,7 +88,7 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
           const stackBadge = getStackBadge(stackType);
           
           return (
-            <div key={deal.id} className="relative w-[340px] md:w-auto flex-shrink-0">
+            <div key={deal.id} className="relative w-[380px] md:w-auto flex-shrink-0">
               <Link
                 href={`/deals/${deal.id}`}
                 className={`relative group card-glow rounded-2xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer block ${
@@ -112,15 +112,15 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
               
               <div className="p-6">
                 {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-white mb-1 group-hover:text-indigo-300 transition-colors">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-white mb-1 group-hover:text-indigo-300 transition-colors break-words">
                       {deal.aiSummary?.headline || deal.title}
                     </h3>
                     <p className="text-sm text-gray-400">{deal.merchant}</p>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-lg ${
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-lg whitespace-nowrap ${
                       deal.issuer === 'Chase' 
                         ? 'bg-blue-500/20 text-blue-400' 
                         : deal.issuer === 'Amex'
@@ -130,7 +130,7 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
                       {deal.issuer}
                     </span>
                     {scoreBadge && (
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-lg ${scoreBadge.class}`}>
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-lg whitespace-nowrap ${scoreBadge.class}`}>
                         {scoreBadge.emoji} {deal.dealScore}
                       </span>
                     )}
@@ -140,33 +140,33 @@ export default function FeaturedDeals({ deals }: FeaturedDealsProps) {
                 {/* Total Value */}
                 <div className="mb-4 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                   <p className="text-xs text-emerald-400 uppercase tracking-wider mb-1">Total Stack Value</p>
-                  <p className="text-2xl font-bold text-emerald-400">{deal.totalValue}</p>
+                  <p className="text-xl md:text-2xl font-bold text-emerald-400 break-words">{deal.totalValue}</p>
                 </div>
                 
                 {/* Stack Components */}
                 <div className="space-y-2 mb-4">
                   {deal.components.cardOffer && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-5 h-5 flex items-center justify-center bg-blue-500/20 rounded text-blue-400 text-xs">💳</span>
-                      <span className="text-gray-300">{deal.components.cardOffer}</span>
+                    <div className="flex items-start gap-2 text-sm">
+                      <span className="w-5 h-5 flex items-center justify-center bg-blue-500/20 rounded text-blue-400 text-xs flex-shrink-0 mt-0.5">💳</span>
+                      <span className="text-gray-300 break-words">{deal.components.cardOffer}</span>
                     </div>
                   )}
                   {deal.components.cashback && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 rounded text-green-400 text-xs">💰</span>
-                      <span className="text-gray-300">{deal.components.cashback}</span>
+                    <div className="flex items-start gap-2 text-sm">
+                      <span className="w-5 h-5 flex items-center justify-center bg-green-500/20 rounded text-green-400 text-xs flex-shrink-0 mt-0.5">💰</span>
+                      <span className="text-gray-300 break-words">{deal.components.cashback}</span>
                     </div>
                   )}
                   {deal.components.promoCode && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="w-5 h-5 flex items-center justify-center bg-amber-500/20 rounded text-amber-400 text-xs">🏷️</span>
-                      <span className="text-gray-300">{deal.components.promoCode}</span>
+                    <div className="flex items-start gap-2 text-sm">
+                      <span className="w-5 h-5 flex items-center justify-center bg-amber-500/20 rounded text-amber-400 text-xs flex-shrink-0 mt-0.5">🏷️</span>
+                      <span className="text-gray-300 break-words">{deal.components.promoCode}</span>
                     </div>
                   )}
                 </div>
                 
                 {/* Description */}
-                <p className="text-sm text-gray-400 mb-4 line-clamp-2">
+                <p className="text-sm text-gray-400 mb-4 line-clamp-3">
                   {deal.aiSummary?.intro || deal.description}
                 </p>
                 
