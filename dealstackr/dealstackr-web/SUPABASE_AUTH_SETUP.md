@@ -1,115 +1,68 @@
-# Supabase Auth Setup for DealStackr Admin
+# Supabase Email/Password Auth Setup for DealStackr Admin
 
-## Step 1: Create a Supabase Project
+## Step 1: Your Supabase Project
 
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Click **New Project**
-3. Name it `dealstackr` and choose a strong database password
-4. Wait for the project to be created
+Your project is already set up:
+- **Project URL**: `https://tqrhrbebgucsyfbdirgi.supabase.co`
+- **Anon Key**: Already configured in `.env.local`
 
-## Step 2: Get Your API Keys
+## Step 2: Create Your Admin Account
 
-1. Go to **Project Settings** → **API**
-2. Copy these values:
-   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
-   - **anon public** key (the longer key)
+1. Go to `http://localhost:3000/admin/login`
+2. Click **"Don't have an account? Sign up"**
+3. Enter your email: `victorperez0313@gmail.com`
+4. Create a password (minimum 6 characters)
+5. Click **"Create Account"**
+6. Check your email for a confirmation link
+7. Click the link to confirm your account
+8. Now you can sign in!
 
-## Step 3: Configure Google OAuth (Optional)
+## Step 3: Verify Email Settings in Supabase (if emails not arriving)
 
-If you want "Sign in with Google":
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard/project/tqrhrbebgucsyfbdirgi/auth/providers)
+2. Click **Email** provider
+3. Make sure **Enable Email provider** is ON
+4. Check **Confirm email** setting (can disable for easier testing)
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create OAuth credentials (Web application)
-3. Add authorized redirect URI: `https://YOUR_PROJECT_REF.supabase.co/auth/v1/callback`
-4. In Supabase: **Authentication** → **Providers** → **Google**
-5. Enable and paste your Client ID and Client Secret
+## Step 4: Railway Environment Variables
 
-## Step 4: Set Environment Variables
-
-### Local Development
-
-Create `.env.local` in the `dealstackr-web` folder:
-
-```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# Admin email restriction (optional - only this email can access admin)
-ADMIN_EMAIL=your-email@gmail.com
-```
-
-### Railway Production
-
-In Railway dashboard → Your Service → **Variables**:
+In Railway dashboard → Your Service → **Variables**, add:
 
 | Variable | Value |
 |----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxx.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Your anon key |
-| `ADMIN_EMAIL` | your-email@gmail.com |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://tqrhrbebgucsyfbdirgi.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRxcmhyYmViZ3Vjc3lmYmRpcmdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MzQ4MzMsImV4cCI6MjA4NDAxMDgzM30.ZXgM9GRbz2F6YwLVfDGeI_Hvq7BzUIkoXABnsLRNJW4` |
+| `ADMIN_EMAIL` | `victorperez0313@gmail.com` |
 
-## Step 5: Create Your Admin Account
+## How Security Works
 
-### Option A: Magic Link (Easiest)
-1. Go to `/admin/login`
-2. Enter your email and click "Send Magic Link"
-3. Check your email and click the link
+1. **Email Restriction**: Only `victorperez0313@gmail.com` can access `/admin`
+2. **Middleware Protection**: Every request to `/admin/*` is checked
+3. **Supabase Sessions**: Secure, HTTP-only cookies managed by Supabase
 
-### Option B: Email/Password
-1. Go to `/admin/login`
-2. Click "Sign Up" tab
-3. Enter email and password
-4. Confirm via email link
+## Skip Email Confirmation (for testing)
 
-### Option C: Google Sign-In
-1. Go to `/admin/login`
-2. Click "Continue with Google"
-3. Sign in with your Google account
+If you don't want to wait for email confirmation:
 
-## Authentication Methods Available
+1. Go to [Supabase Auth Settings](https://supabase.com/dashboard/project/tqrhrbebgucsyfbdirgi/auth/providers)
+2. Click **Email**
+3. Turn OFF "Confirm email"
+4. Save
 
-| Method | Description |
-|--------|-------------|
-| **Magic Link** | Passwordless - get a link via email |
-| **Email/Password** | Traditional sign up/sign in |
-| **Google OAuth** | One-click Google sign in |
-
-## Restricting Admin Access
-
-Set the `ADMIN_EMAIL` environment variable to restrict access:
-
-```bash
-ADMIN_EMAIL=victor@example.com
-```
-
-Only this email can access `/admin`. Other users will see "Access denied".
-
-## How It Works
-
-1. User visits `/admin` → middleware checks auth
-2. If not logged in → redirects to `/admin/login`
-3. User signs in via preferred method
-4. Supabase creates a secure session cookie
-5. Middleware validates session on each request
-6. If `ADMIN_EMAIL` is set, only that email can access
+Now you can sign up and immediately sign in without email confirmation.
 
 ## Troubleshooting
 
-### "Access denied" error
-- Check that your email matches `ADMIN_EMAIL` exactly
-- Clear cookies and try again
+### "Invalid login credentials"
+- Make sure you signed up first
+- Check if email confirmation is required
+- Try resetting your password
 
-### Magic link not arriving
+### Can't access /admin after login
+- Make sure your email matches `ADMIN_EMAIL` exactly
+- Check the console for errors
+
+### Email not arriving
 - Check spam folder
-- Verify email is correct
-- Check Supabase dashboard → Logs
-
-### Google sign-in not working
-- Verify OAuth credentials in Supabase
-- Check redirect URI matches exactly
-- Ensure Google provider is enabled in Supabase
-
-### Session expires quickly
-- Supabase handles session refresh automatically
-- The middleware refreshes tokens on each request
+- Verify email settings in Supabase dashboard
+- Consider disabling email confirmation for testing
