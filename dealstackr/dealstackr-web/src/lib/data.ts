@@ -60,16 +60,14 @@ let offersCache: Offer[] | null = null;
 let featuredCache: FeaturedDeal[] | null = null;
 
 function getOffersCache(): Offer[] {
-  if (offersCache === null) {
-    offersCache = loadOffers();
-  }
+  // Always read fresh data from file to avoid stale cache between workers
+  offersCache = loadOffers();
   return offersCache;
 }
 
 function getFeaturedCache(): FeaturedDeal[] {
-  if (featuredCache === null) {
-    featuredCache = loadFeaturedDeals();
-  }
+  // Always read fresh data from file to avoid stale cache between workers
+  featuredCache = loadFeaturedDeals();
   return featuredCache;
 }
 
