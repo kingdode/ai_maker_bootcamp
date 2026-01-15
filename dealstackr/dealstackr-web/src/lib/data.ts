@@ -124,13 +124,22 @@ export function deleteFeaturedDeal(id: string): boolean {
   return true;
 }
 
+// Helper to normalize issuer for comparison (case-insensitive)
+function normalizeIssuer(issuer: string | undefined): 'Chase' | 'Amex' | 'Unknown' {
+  if (!issuer) return 'Unknown';
+  const lower = issuer.toLowerCase();
+  if (lower === 'chase') return 'Chase';
+  if (lower === 'amex' || lower === 'american express') return 'Amex';
+  return 'Unknown';
+}
+
 // Offers functions
 export function getOffers(): Offer[] {
-  // Ensure all offers have deal scores, then sort by score (highest first)
+  // Ensure all offers have deal scores, normalize issuer, then sort by score (highest first)
   return [...getOffersCache()]
     // Data quality filter: Amex offers must have expiration dates
     .filter(offer => {
-      if (offer.issuer?.toLowerCase() === 'amex') {
+      if (normalizeIssuer(offer.issuer) === 'Amex') {
         if (!offer.expires_at) {
           console.log('[Data] Filtering out Amex offer without expiration:', offer.merchant);
           return false;
@@ -140,13 +149,14 @@ export function getOffers(): Offer[] {
     })
     .map(offer => ({
       ...offer,
+      issuer: normalizeIssuer(offer.issuer), // Normalize issuer case
       deal_score: offer.deal_score ?? calculateDealScore(offer.offer_value)
     }))
     .sort((a, b) => (b.deal_score?.finalScore ?? 0) - (a.deal_score?.finalScore ?? 0));
 }
 
 export function getOffersByIssuer(issuer: 'Chase' | 'Amex'): Offer[] {
-  return getOffersCache().filter(o => o.issuer === issuer);
+  return getOffersCache().filter(o => normalizeIssuer(o.issuer) === issuer);
 }
 
 export function getOfferById(id: string): Offer | undefined {
@@ -161,8 +171,8 @@ export function getStats(): DashboardStats {
   const offers = getOffersCache();
   return {
     totalOffers: offers.length,
-    chaseOffers: offers.filter(o => o.issuer === 'Chase').length,
-    amexOffers: offers.filter(o => o.issuer === 'Amex').length,
+    chaseOffers: offers.filter(o => normalizeIssuer(o.issuer) === 'Chase').length,
+    amexOffers: offers.filter(o => normalizeIssuer(o.issuer) === 'Amex').length,
     stackableOffers: offers.filter(o => o.stackable).length,
     lastUpdated: new Date().toISOString()
   };

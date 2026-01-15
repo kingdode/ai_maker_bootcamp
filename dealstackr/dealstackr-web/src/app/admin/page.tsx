@@ -2,16 +2,19 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import { User } from '@supabase/supabase-js';
 import { FeaturedDeal, Offer, CrowdsourcedReport } from '@/lib/types';
 import { calculateStackedDeal, parseCardOffer, getStackType, DealComponents, DealCalculation } from '@/lib/dealCalculator';
 
 export default function AdminPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
-  const isAuthenticated = !!session;
-  const authLoading = status === 'loading';
+  const supabase = createClient();
+  
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const isAuthenticated = !!user;
 
   const [deals, setDeals] = useState<FeaturedDeal[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -21,15 +24,34 @@ export default function AdminPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<'featured' | 'offers' | 'userreports' | 'settings'>('featured');
 
-  // Redirect to login if not authenticated
+  // Check auth status on mount
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/admin/login');
-    }
-  }, [status, router]);
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setAuthLoading(false);
+      
+      if (!user) {
+        router.push('/admin/login');
+      }
+    };
+    
+    checkUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) {
+        router.push('/admin/login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router, supabase.auth]);
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/' });
+    await supabase.auth.signOut();
+    router.push('/');
   };
   
   // Promotion modal state
@@ -773,17 +795,17 @@ export default function AdminPage() {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              {session?.user && (
+              {user && (
                 <div className="flex items-center gap-2">
-                  {session.user.image && (
+                  {user.user_metadata?.avatar_url && (
                     <img 
-                      src={session.user.image} 
-                      alt={session.user.name || 'User'} 
+                      src={user.user_metadata.avatar_url} 
+                      alt={user.user_metadata?.full_name || 'User'} 
                       className="w-8 h-8 rounded-full"
                     />
                   )}
                   <span className="text-sm text-gray-400 hidden md:inline">
-                    {session.user.email}
+                    {user.email}
                   </span>
                 </div>
               )}
