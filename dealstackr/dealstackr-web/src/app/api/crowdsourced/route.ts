@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CrowdsourcedReport } from '@/lib/types';
+import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
 import fs from 'fs';
 import path from 'path';
 
 // File-based storage for crowdsourced data
 const DATA_DIR = path.join(process.cwd(), '.data');
 const CROWDSOURCED_FILE = path.join(DATA_DIR, 'crowdsourced.json');
+
+// Simple API key for Chrome extension sync (not a secret, just prevents random abuse)
+const SYNC_API_KEY = process.env.SYNC_API_KEY || 'dealstackr-sync-2024';
 
 // Ensure data directory exists
 function ensureDataDir() {
@@ -44,7 +48,7 @@ function getCrowdsourcedCache(): Record<string, CrowdsourcedReport> {
   return crowdsourcedCache;
 }
 
-// GET - Retrieve all crowdsourced data
+// GET - Public (anyone can view crowdsourced data)
 export async function GET() {
   const data = getCrowdsourcedCache();
   
@@ -61,9 +65,22 @@ export async function GET() {
   });
 }
 
-// POST - Sync crowdsourced data from extension
+// POST - Protected with simple API key (for Chrome extension sync)
 export async function POST(request: NextRequest) {
   try {
+    // Check for sync API key (simple protection against random abuse)
+    const apiKey = request.headers.get('x-sync-api-key');
+    if (apiKey !== SYNC_API_KEY) {
+      // Also allow if user is authenticated as admin
+      const auth = await checkAdminAuth();
+      if (!auth.authenticated) {
+        return NextResponse.json(
+          { error: 'Invalid sync key' },
+          { status: 401 }
+        );
+      }
+    }
+    
     const body = await request.json();
     
     if (!body.crowdsourcedDeals || typeof body.crowdsourcedDeals !== 'object') {
@@ -121,8 +138,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Remove a crowdsourced report by domain
+// DELETE - Protected (admin only)
 export async function DELETE(request: NextRequest) {
+  // Check admin authentication
+  const auth = await checkAdminAuth();
+  if (!auth.authenticated) {
+    return unauthorizedResponse();
+  }
+  
   try {
     const { searchParams } = new URL(request.url);
     const domain = searchParams.get('domain');

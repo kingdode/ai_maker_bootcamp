@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
 
 export async function POST(request: NextRequest) {
+  // Require admin authentication (this endpoint is called by generate-article)
+  const auth = await checkAdminAuth();
+  if (!auth.authenticated) {
+    return unauthorizedResponse();
+  }
+
   try {
     const { merchant } = await request.json();
 
@@ -11,9 +18,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For now, use Unsplash API for product images (free tier available)
-    // Alternative: Could use Google Custom Search API, Bing Image Search, or Pexels
-    const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY || 'demo';
+    // Use Unsplash API for product images (free tier available)
+    const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY;
+    
+    if (!unsplashAccessKey) {
+      // Return placeholder images if Unsplash not configured
+      return NextResponse.json({
+        success: true,
+        images: generatePlaceholderImages(merchant)
+      });
+    }
     
     try {
       const searchQuery = encodeURIComponent(`${merchant} products lifestyle`);
@@ -35,7 +49,11 @@ export async function POST(request: NextRequest) {
 
       const data = await response.json();
       
-      const images = data.results?.slice(0, 3).map((photo: any) => ({
+      const images = data.results?.slice(0, 3).map((photo: { 
+        urls: { regular: string }; 
+        description?: string; 
+        user: { name: string } 
+      }) => ({
         url: photo.urls.regular,
         alt: `${merchant} ${photo.description || 'product'}`,
         source: `Photo by ${photo.user.name} on Unsplash`
@@ -66,8 +84,6 @@ export async function POST(request: NextRequest) {
 
 // Generate placeholder images using a placeholder service
 function generatePlaceholderImages(merchant: string): Array<{ url: string; alt: string; source?: string }> {
-  const merchantSlug = merchant.toLowerCase().replace(/\s+/g, '-');
-  
   return [
     {
       url: `https://placehold.co/800x400/4f46e5/ffffff?text=${encodeURIComponent(merchant)}`,

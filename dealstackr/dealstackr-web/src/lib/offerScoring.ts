@@ -311,10 +311,7 @@ export function validateScoring(): boolean {
       (tc.expectedBand === 'strong' && result.band === 'elite');
     
     if (!passed) {
-      console.warn(`FAIL: "${tc.input}" scored ${result.finalScore} (${result.band}), expected ${tc.expectedBand}`);
       allPassed = false;
-    } else {
-      console.log(`PASS: "${tc.input}" → ${result.finalScore} (${result.band})`);
     }
   }
 

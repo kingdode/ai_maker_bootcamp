@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
 
 interface ArticleRequest {
   merchant: string;
@@ -15,16 +16,22 @@ interface ArticleRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  const auth = await checkAdminAuth();
+  if (!auth.authenticated) {
+    return unauthorizedResponse();
+  }
+
   try {
     const body: ArticleRequest = await request.json();
     const { merchant, offerValue, issuer, cardName, minSpend, maxRedemption, expiresAt, cashback, promoCode, dealScore, stackType } = body;
 
-    // Get OpenAI API key from request headers or environment
-    const apiKey = request.headers.get('x-openai-api-key') || process.env.OPENAI_API_KEY;
+    // Get OpenAI API key from environment variable ONLY (secure)
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'OpenAI API key not provided. Please configure it in admin settings.' },
+        { error: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.' },
         { status: 400 }
       );
     }
@@ -52,7 +59,7 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini', // Using cheaper model, can upgrade to gpt-4 if needed
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -64,7 +71,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         temperature: 0.7,
-        max_tokens: 3000 // Increased for longer, more detailed articles
+        max_tokens: 1000
       })
     });
 
@@ -86,7 +93,8 @@ export async function POST(request: NextRequest) {
     // Fetch product images for the merchant
     let merchantImages: Array<{ url: string; alt: string; source?: string }> = [];
     try {
-      const imageResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/openai/fetch-images`, {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const imageResponse = await fetch(`${baseUrl}/api/openai/fetch-images`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ merchant })
@@ -98,7 +106,6 @@ export async function POST(request: NextRequest) {
       }
     } catch (imageError) {
       console.error('Error fetching images:', imageError);
-      // Continue without images if fetch fails
     }
 
     return NextResponse.json({
@@ -111,7 +118,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error generating article:', error);
     return NextResponse.json(
-      { error: 'Failed to generate article. Please check your API key and try again.' },
+      { error: 'Failed to generate article. Please check the server logs.' },
       { status: 500 }
     );
   }
@@ -166,41 +173,26 @@ CARD: ${issuer}${cardName ? ` ${cardName}` : ''}`;
     prompt += `\nSTACK TYPE: ${stackType}`;
   }
 
-  prompt += `\n\nPlease write a comprehensive, editorial-style article with the following structure:
+  prompt += `\n\nWrite a CONCISE editorial summary with the following structure:
 
-1. HEADLINE: A compelling, attention-grabbing headline (max 80 characters)
+1. HEADLINE: Catchy headline (max 60 characters)
 
-2. INTRO: A 2-3 sentence introduction that hooks the reader and introduces the deal
+2. INTRO: 1-2 sentences introducing the deal
 
-3. VENDOR BACKGROUND: A full paragraph (4-6 sentences) explaining what ${merchant} is, what products/services they offer, their target audience, and why people shop there. Make it informative and engaging.
+3. VENDOR BACKGROUND: 2-3 sentences about what ${merchant} sells and who shops there
 
-4. VALUE EXPLANATION: A substantial paragraph (5-7 sentences) explaining the mathematics and value of this specific offer. Include:
-   - The exact savings amount
-   - Percentage saved
-   - Comparison to typical prices
-   - Real-world purchase examples
-   - Why this is a strong value proposition
+4. VALUE EXPLANATION: 2-3 sentences explaining the savings (include the math)
 
-5. DEAL MERITS: A paragraph (4-5 sentences) highlighting what makes this particular deal stand out:
-   - Why now is a good time to buy
-   - What makes this offer better than usual
-   - Who would benefit most from this deal
-   - Any unique aspects of the offer
+5. DEAL MERITS: 2-3 sentences on why this deal is special
 
-6. HOW TO REDEEM: Clear, step-by-step instructions (4-6 steps) on exactly how to activate and use this offer:
-   - How to add the offer to your card
-   - Where to shop (online/in-store)
-   - What to buy
-   - How to ensure the credit posts
-   - Timeline for receiving the credit
+6. HOW TO REDEEM: 3-4 brief bullet points on how to use this offer
 
-7. STACKING NOTES: ${cashback || promoCode ? 'A detailed paragraph explaining how to stack this offer with cashback portals and promo codes for maximum savings, including specific examples and calculations.' : 'If applicable, mention potential stacking opportunities.'}
+7. STACKING NOTES: ${cashback || promoCode ? '1-2 sentences on combining with cashback/promos' : 'Skip if not applicable'}
 
-8. EXPIRATION NOTE: ${expiresAt ? 'Create urgency around the expiration date and remind readers to act quickly.' : 'If applicable, mention any time-sensitive aspects.'}
+8. EXPIRATION NOTE: ${expiresAt ? '1 sentence about the deadline' : 'Skip if not applicable'}
 
-Tone: Professional, consumer-friendly, editorial (like Wirecutter or The Points Guy). Focus on real value and practical advice. Use specific examples and numbers. Be enthusiastic but not salesy.
-
-Length: Aim for 800-1000 words total.
+IMPORTANT: Keep it SHORT and punchy. Total length should be ~200-300 words max.
+Tone: Friendly, helpful, not salesy.
 
 Format: Return as JSON with keys: headline, intro, vendorBackground, valueExplanation, dealMerits, howToRedeem, stackingNotes (optional), expirationNote (optional)`;
 
@@ -233,7 +225,7 @@ function parseArticleContent(content: string): {
         expirationNote: parsed.expirationNote
       };
     }
-  } catch (e) {
+  } catch {
     // Fall through to text parsing
   }
 

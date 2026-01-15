@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFeaturedDealById, updateFeaturedDeal, deleteFeaturedDeal } from '@/lib/data';
+import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+// GET - Public (anyone can view a deal)
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const deal = getFeaturedDealById(id);
@@ -16,7 +18,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json(deal);
 }
 
+// PUT - Protected (admin only)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
+  // Check admin authentication
+  const auth = await checkAdminAuth();
+  if (!auth.authenticated) {
+    return unauthorizedResponse();
+  }
+  
   const { id } = await params;
   
   try {
@@ -33,7 +42,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
+// DELETE - Protected (admin only)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  // Check admin authentication
+  const auth = await checkAdminAuth();
+  if (!auth.authenticated) {
+    return unauthorizedResponse();
+  }
+  
   const { id } = await params;
   const success = deleteFeaturedDeal(id);
   

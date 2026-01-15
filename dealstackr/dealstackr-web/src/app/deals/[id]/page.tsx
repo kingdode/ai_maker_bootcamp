@@ -188,7 +188,7 @@ export default async function DealPage({ params }: DealPageProps) {
             )}
 
             {/* How to Redeem */}
-            {deal.aiSummary?.howToRedeem && (
+            {deal.aiSummary?.howToRedeem && typeof deal.aiSummary.howToRedeem === 'string' && (
               <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
                 <h2 className="text-xl font-bold text-white mb-4">📝 How to Redeem This Offer</h2>
                 <div className="prose prose-invert prose-sm max-w-none">
@@ -227,7 +227,7 @@ export default async function DealPage({ params }: DealPageProps) {
             )}
 
             {/* Raw Article Content (fallback if no structured AI summary) */}
-            {deal.articleContent && !deal.aiSummary?.vendorBackground && (
+            {deal.articleContent && typeof deal.articleContent === 'string' && !deal.aiSummary?.vendorBackground && (
               <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
                 <h2 className="text-xl font-bold text-white mb-4">📝 Deal Details</h2>
                 <div className="prose prose-invert prose-sm max-w-none">

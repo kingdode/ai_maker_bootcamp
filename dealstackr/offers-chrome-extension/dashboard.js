@@ -2526,7 +2526,10 @@
         
         const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-sync-api-key': 'dealstackr-sync-2024'
+          },
           body: JSON.stringify({ offers: offersToSync })
         });
         
@@ -2553,7 +2556,10 @@
               if (crowdsourcedResult.crowdsourcedDeals && Object.keys(crowdsourcedResult.crowdsourcedDeals).length > 0) {
                 const crowdsourcedResponse = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'x-sync-api-key': 'dealstackr-sync-2024'
+                  },
                   body: JSON.stringify({ crowdsourcedDeals: crowdsourcedResult.crowdsourcedDeals })
                 });
                 

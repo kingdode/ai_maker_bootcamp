@@ -86,9 +86,9 @@ export default function AdminPage() {
     articleContent: ''
   });
   const [generatingAI, setGeneratingAI] = useState(false);
-  const [openaiApiKey, setOpenaiApiKey] = useState<string>('');
   const [articleContent, setArticleContent] = useState<string>('');
   const [generatingArticle, setGeneratingArticle] = useState(false);
+  const [openaiConfigured, setOpenaiConfigured] = useState<boolean | null>(null);
   
   // User report promotion modal state
   const [promotingReport, setPromotingReport] = useState<CrowdsourcedReport | null>(null);
@@ -137,12 +137,19 @@ export default function AdminPage() {
     fetchDeals();
     fetchOffers();
     fetchCrowdsourcedData();
-    // Load OpenAI API key from localStorage
-    const savedKey = localStorage.getItem('openai_api_key');
-    if (savedKey) {
-      setOpenaiApiKey(savedKey);
-    }
+    // Check if OpenAI is configured server-side
+    checkOpenAIStatus();
   }, []);
+
+  const checkOpenAIStatus = async () => {
+    try {
+      const res = await fetch('/api/openai/status');
+      const data = await res.json();
+      setOpenaiConfigured(data.configured);
+    } catch {
+      setOpenaiConfigured(false);
+    }
+  };
 
   const fetchDeals = async () => {
     try {
@@ -365,10 +372,8 @@ export default function AdminPage() {
   const generateArticle = async () => {
     if (!promotingOffer) return;
     
-    if (!openaiApiKey) {
-      alert('Please configure your OpenAI API key in Settings first.');
-      closePromotionModal();
-      setActiveTab('settings');
+    if (openaiConfigured === false) {
+      alert('OpenAI API key is not configured on the server. Please set OPENAI_API_KEY environment variable.');
       return;
     }
     
@@ -376,10 +381,7 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/openai/generate-article', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-openai-api-key': openaiApiKey
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           merchant: promotingOffer.merchant,
           offerValue: promotionForm.cardOffer || promotingOffer.offer_value,
@@ -410,18 +412,12 @@ export default function AdminPage() {
       } else {
         throw new Error(data.error || 'Failed to generate article');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to generate article:', error);
-      alert(`Failed to generate article: ${error.message || 'Please check your API key and try again.'}`);
+      const message = error instanceof Error ? error.message : 'Server error';
+      alert(`Failed to generate article: ${message}`);
     } finally {
       setGeneratingArticle(false);
-    }
-  };
-
-  const saveApiKey = () => {
-    if (openaiApiKey) {
-      localStorage.setItem('openai_api_key', openaiApiKey);
-      alert('API key saved successfully!');
     }
   };
 
@@ -1542,7 +1538,7 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-6">
-              {/* OpenAI API Key Configuration */}
+              {/* OpenAI API Configuration Status */}
               <div className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-2xl">🔑</span>
@@ -1553,48 +1549,39 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      API Key
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="password"
-                        value={openaiApiKey}
-                        onChange={(e) => setOpenaiApiKey(e.target.value)}
-                        placeholder="sk-..."
-                        className="flex-1 px-4 py-2 bg-[#0a0a0f] border border-[#2a2a3a] rounded-lg text-white focus:border-blue-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={saveApiKey}
-                        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Save
-                      </button>
+                  {openaiConfigured === null ? (
+                    <div className="flex items-center gap-2 p-3 bg-gray-500/10 border border-gray-500/30 rounded-lg">
+                      <span className="text-gray-400">⏳</span>
+                      <span className="text-sm text-gray-400">Checking configuration...</span>
                     </div>
-                  </div>
-
-                  {openaiApiKey && (
+                  ) : openaiConfigured ? (
                     <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                       <span className="text-emerald-400">✓</span>
                       <span className="text-sm text-emerald-400">
-                        API key configured ({openaiApiKey.substring(0, 7)}...{openaiApiKey.substring(openaiApiKey.length - 4)})
+                        OpenAI API key is configured (server-side)
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                      <span className="text-amber-400">⚠️</span>
+                      <span className="text-sm text-amber-400">
+                        OpenAI API key not configured
                       </span>
                     </div>
                   )}
 
                   <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                     <p className="text-sm text-gray-300 mb-2">
-                      <strong>How to get your API key:</strong>
+                      <strong>How to configure OpenAI:</strong>
                     </p>
                     <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
-                      <li>Visit <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">platform.openai.com/api-keys</a></li>
-                      <li>Sign in or create an account</li>
-                      <li>Click "Create new secret key"</li>
-                      <li>Copy the key and paste it above</li>
+                      <li>Get an API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">platform.openai.com/api-keys</a></li>
+                      <li>Add to your environment variables as <code className="bg-gray-800 px-1 rounded">OPENAI_API_KEY</code></li>
+                      <li>For Railway: Add it in your project&apos;s Variables settings</li>
+                      <li>For local: Add it to your <code className="bg-gray-800 px-1 rounded">.env.local</code> file</li>
                     </ol>
                     <p className="text-xs text-gray-500 mt-3">
-                      Your API key is stored locally in your browser and never sent to our servers except when generating articles.
+                      🔒 Secure: The API key is stored server-side only and never exposed to the browser.
                     </p>
                   </div>
                 </div>
@@ -1632,49 +1619,23 @@ export default function AdminPage() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* OpenAI API Key Status */}
-                {!openaiApiKey && (
+                {/* OpenAI API Status */}
+                {openaiConfigured === false && (
                   <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">⚠️</span>
-                      <h3 className="font-semibold text-amber-400">OpenAI API Key Required</h3>
+                      <h3 className="font-semibold text-amber-400">OpenAI Not Configured</h3>
                     </div>
                     <p className="text-sm text-gray-400 mb-3">
-                      To generate AI articles, please configure your OpenAI API key in{' '}
-                      <button
-                        onClick={() => {
-                          closePromotionModal();
-                          setActiveTab('settings');
-                        }}
-                        className="text-blue-400 hover:underline"
-                      >
-                        Settings
-                      </button>
-                      .
+                      Set <code className="bg-gray-800 px-1 rounded">OPENAI_API_KEY</code> environment variable to enable AI article generation.
                     </p>
                   </div>
                 )}
-                {openaiApiKey && (
+                {openaiConfigured === true && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">✓</span>
-                        <div>
-                          <p className="text-sm font-medium text-emerald-400">OpenAI API Key Configured</p>
-                          <p className="text-xs text-gray-400">
-                            {openaiApiKey.substring(0, 7)}...{openaiApiKey.substring(openaiApiKey.length - 4)}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          closePromotionModal();
-                          setActiveTab('settings');
-                        }}
-                        className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
-                      >
-                        Change Key
-                      </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">✓</span>
+                      <p className="text-sm font-medium text-emerald-400">OpenAI API Configured (Server-side)</p>
                     </div>
                   </div>
                 )}
@@ -1732,7 +1693,7 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={generateArticle}
-                        disabled={generatingArticle || !openaiApiKey}
+                        disabled={generatingArticle || openaiConfigured === false}
                         className="px-4 py-2 bg-purple-500 text-white text-sm rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-colors"
                       >
                         {generatingArticle ? 'Generating...' : 'Generate Full Article'}

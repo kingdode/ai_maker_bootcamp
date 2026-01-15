@@ -141,7 +141,7 @@ export function getOffers(): Offer[] {
     .filter(offer => {
       if (normalizeIssuer(offer.issuer) === 'Amex') {
         if (!offer.expires_at) {
-          console.log('[Data] Filtering out Amex offer without expiration:', offer.merchant);
+          // Amex offers require expiration date
           return false;
         }
       }
@@ -185,7 +185,7 @@ export function syncOffers(newOffers: Offer[]): { success: boolean; count: numbe
     const qualityFiltered = newOffers.filter(offer => {
       if (offer.issuer?.toLowerCase() === 'amex') {
         if (!offer.expires_at) {
-          console.log('[Sync] Rejecting Amex offer without expiration:', offer.merchant);
+          // Amex offers require expiration date
           return false;
         }
       }
