@@ -17,6 +17,16 @@ RUN npm ci --only=production && npm cache clean --force
 FROM node:22-alpine AS builder
 WORKDIR /app
 
+# Accept build-time environment variables for Next.js public vars
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG ADMIN_EMAIL
+
+# Set them as environment variables for the build
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV ADMIN_EMAIL=$ADMIN_EMAIL
+
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
