@@ -33,8 +33,25 @@ interface SummaryData {
   byCategory: Record<string, Analysis[]>;
 }
 
+interface ImagingStudy {
+  groupId: string;
+  date: string | null;
+  bodyRegion: string | null;
+  provider: string | null;
+  description: string;
+  fileCount: number;
+  files: string[];
+}
+
+interface ImagingSummary {
+  lastUpdated: string;
+  totalImagingStudies: number;
+  studies: ImagingStudy[];
+}
+
 export default function SummaryPage() {
   const [data, setData] = useState<SummaryData | null>(null);
+  const [imagingData, setImagingData] = useState<ImagingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [doctorSummary, setDoctorSummary] = useState<string | null>(null);
@@ -42,6 +59,7 @@ export default function SummaryPage() {
 
   useEffect(() => {
     fetchSummary();
+    fetchImagingSummary();
   }, []);
 
   const fetchSummary = async () => {
@@ -55,6 +73,18 @@ export default function SummaryPage() {
       console.error("Error fetching summary:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchImagingSummary = async () => {
+    try {
+      const response = await fetch("/api/ai/imaging");
+      if (response.ok) {
+        const imagingSummaryData = await response.json();
+        setImagingData(imagingSummaryData);
+      }
+    } catch (err) {
+      console.error("Error fetching imaging summary:", err);
     }
   };
 
@@ -209,6 +239,43 @@ export default function SummaryPage() {
           <div style={styles.tagGrid}>
             {data.patientSummary.bodyRegions.map((region, i) => (
               <span key={i} style={styles.regionTag}>{region}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Imaging Studies */}
+      {imagingData && imagingData.studies && imagingData.studies.length > 0 && (
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>🔬 Imaging Studies ({imagingData.totalImagingStudies})</h2>
+          <div style={styles.imagingGrid}>
+            {imagingData.studies.map((study, i) => (
+              <div key={i} style={styles.imagingCard}>
+                <div style={styles.imagingHeader}>
+                  <span style={styles.imagingIcon}>🔬</span>
+                  <div>
+                    <div style={styles.imagingTitle}>
+                      {study.bodyRegion ? `${study.bodyRegion.charAt(0).toUpperCase() + study.bodyRegion.slice(1)} Imaging` : "Medical Imaging Study"}
+                    </div>
+                    <div style={styles.imagingMeta}>
+                      {study.date ? formatDate(study.date) : "Date unknown"}
+                      {study.provider && ` • ${study.provider}`}
+                      {` • ${study.fileCount} files`}
+                    </div>
+                  </div>
+                </div>
+                <div style={styles.imagingDescription}>
+                  {study.description}
+                </div>
+                <div style={styles.imagingFiles}>
+                  {study.files.slice(0, 5).map((file, j) => (
+                    <span key={j} style={styles.imagingFileTag}>{file}</span>
+                  ))}
+                  {study.files.length > 5 && (
+                    <span style={styles.imagingFileTag}>+{study.files.length - 5} more</span>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -485,6 +552,54 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#8b5cf6",
     fontSize: "13px",
     padding: "8px",
+  },
+  imagingGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(1, 1fr)",
+    gap: "16px",
+  },
+  imagingCard: {
+    background: "#13131a",
+    borderRadius: "12px",
+    padding: "20px",
+    border: "1px solid #10b981",
+  },
+  imagingHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "12px",
+    marginBottom: "12px",
+  },
+  imagingIcon: {
+    fontSize: "28px",
+  },
+  imagingTitle: {
+    fontSize: "16px",
+    fontWeight: 600,
+    color: "#10b981",
+  },
+  imagingMeta: {
+    fontSize: "12px",
+    color: "#6b6b80",
+    marginTop: "2px",
+  },
+  imagingDescription: {
+    fontSize: "14px",
+    color: "#f0f0f5",
+    lineHeight: 1.5,
+    marginBottom: "12px",
+  },
+  imagingFiles: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "6px",
+  },
+  imagingFileTag: {
+    padding: "4px 8px",
+    borderRadius: "4px",
+    background: "rgba(16, 185, 129, 0.15)",
+    color: "#10b981",
+    fontSize: "11px",
   },
   emptyState: {
     textAlign: "center",

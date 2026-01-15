@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Ledger - bc1p3qrp9t95dw9crw94...</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .header .address {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            opacity: 0.9;
+            word-break: break-all;
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .card .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .card.receive .value {
+            color: #28a745;
+        }
+        
+        .card.send .value {
+            color: #dc3545;
+        }
+        
+        .card.gain .value {
+            color: #28a745;
+        }
+        
+        .card.loss .value {
+            color: #dc3545;
+        }
+        
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .controls label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .controls select, .controls input {
+            padding: 8px 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .controls select:focus, .controls input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            padding: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        
+        thead {
+            background: #667eea;
+            color: white;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85em;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        tbody tr {
+            border-bottom: 1px solid #dee2e6;
+            transition: background-color 0.2s;
+        }
+        
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        tbody tr.receive {
+            border-left: 4px solid #28a745;
+        }
+        
+        tbody tr.send {
+            border-left: 4px solid #dc3545;
+        }
+        
+        td {
+            padding: 12px 15px;
+            color: #495057;
+        }
+        
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .type-badge.receive {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .type-badge.send {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .debit {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .credit {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .gain {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .loss {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .balance {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .txid-link {
+            color: #667eea;
+            text-decoration: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+        }
+        
+        .txid-link:hover {
+            text-decoration: underline;
+        }
+        
+        .inscription-id {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        
+        .confirmed-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        
+        .confirmed-badge.yes {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .confirmed-badge.no {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        .no-results {
+            padding: 40px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+        
+        .btc-amount {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+            }
+            
+            .controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Tax Ledger - Gains & Losses</h1>
+            <div class="address">bc1p3qrp9t95dw9crw94kvh36vcafz46mrln99yrvh4fygw6w7vv4dwsu8teyl</div>
+            <div style="margin-top: 15px; font-size: 0.9em; opacity: 0.9;">
+                Period: 2024-03-12 to 2025-12-09 | Generated: 2025-12-17 22:13:50 UTC
+            </div>
+        </div>
+        
+        <div class="summary-cards">
+            <div class="card">
+                <div class="label">Total Transactions</div>
+                <div class="value">22</div>
+            </div>
+            <div class="card receive">
+                <div class="label">Purchases</div>
+                <div class="value">12</div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 5px;">0.12845500 BTC</div>
+            </div>
+            <div class="card send">
+                <div class="label">Sales</div>
+                <div class="value">10</div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 5px;">0.01409965 BTC</div>
+            </div>
+            <div class="card">
+                <div class="label">Total Fees</div>
+                <div class="value">0.00000482</div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 5px;">BTC</div>
+            </div>
+            <div class="card gain">
+                <div class="label">Total Gains</div>
+                <div class="value">0.00000000</div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 5px;">BTC</div>
+            </div>
+            <div class="card loss">
+                <div class="label">Total Losses</div>
+                <div class="value">0.11435535</div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 5px;">BTC</div>
+            </div>
+            <div class="card" style="border: 2px solid #dc3545;">
+                <div class="label">Net Gain/Loss</div>
+                <div class="value" style="color: #dc3545;">
+                    -0.11435535
+                </div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 5px;">BTC</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <label for="typeFilter">Filter by Type:</label>
+            <select id="typeFilter">
+                <option value="all">All Types</option>
+                <option value="RECEIVE">Purchases Only</option>
+                <option value="SEND">Sales Only</option>
+            </select>
+            
+            <label for="dateFilter">Filter by Date:</label>
+            <input type="date" id="dateFilterStart" placeholder="Start Date">
+            <input type="date" id="dateFilterEnd" placeholder="End Date">
+            
+            <label for="searchBox">Search:</label>
+            <input type="text" id="searchBox" placeholder="Search transaction ID, inscription ID...">
+            
+            <button onclick="resetFilters()" style="padding: 8px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Reset Filters
+            </button>
+        </div>
+        
+        <div class="table-container">
+            <table id="ledgerTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Debit BTC</th>
+                        <th>Credit BTC</th>
+                        <th>Fee BTC</th>
+                        <th>Balance BTC</th>
+                        <th>Cost Basis</th>
+                        <th>Gain/Loss BTC</th>
+                        <th>Transaction ID</th>
+                        <th>Inscription ID</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="ledgerBody">
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-03-12" data-txid="0a2bd03bae5429fa5e9627e0bb26df7e0722b39376dbcf9297f9bf21db4bc09f" data-inscription="897bf16ccf5cd6fff8903fe32c50a1b59ba49d967ca0aa50122696933c499ce4i67">
+                        <td>2024-03-12</td>
+                        <td>14:53:22</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/0a2bd03bae5429fa5e9627e0bb26df7e0722b39376dbcf9297f9bf21db4bc09f" target="_blank" class="txid-link" title="0a2bd03bae5429fa5e9627e0bb26df7e0722b39376dbcf9297f9bf21db4bc09f">0a2bd03bae5429fa...</a></td>
+                        <td class="inscription-id" title="897bf16ccf5cd6fff8903fe32c50a1b59ba49d967ca0aa50122696933c499ce4i67">897bf16ccf5cd6fff890...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-03-14" data-txid="57d8ff2cfdceacddaeea5e760ac5c843efd8de051de976e3e599437329ba5e71" data-inscription="941fd32ec45d6990b1efdb59c9a38dd8c75482216c27dd7eaa8c69a708488a72i852">
+                        <td>2024-03-14</td>
+                        <td>23:41:01</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/57d8ff2cfdceacddaeea5e760ac5c843efd8de051de976e3e599437329ba5e71" target="_blank" class="txid-link" title="57d8ff2cfdceacddaeea5e760ac5c843efd8de051de976e3e599437329ba5e71">57d8ff2cfdceacdd...</a></td>
+                        <td class="inscription-id" title="941fd32ec45d6990b1efdb59c9a38dd8c75482216c27dd7eaa8c69a708488a72i852">941fd32ec45d6990b1ef...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-04-10" data-txid="2b125b6b58c7ab1f9264be1043396e36d19614a5008dafbe5c812dd060ef0e91" data-inscription="8322821411450950953a840883f76903f24646f570b0842f1e251e7dde9f6891i0">
+                        <td>2024-04-10</td>
+                        <td>21:59:31</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/2b125b6b58c7ab1f9264be1043396e36d19614a5008dafbe5c812dd060ef0e91" target="_blank" class="txid-link" title="2b125b6b58c7ab1f9264be1043396e36d19614a5008dafbe5c812dd060ef0e91">2b125b6b58c7ab1f...</a></td>
+                        <td class="inscription-id" title="8322821411450950953a840883f76903f24646f570b0842f1e251e7dde9f6891i0">8322821411450950953a...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-04-16" data-txid="5eeacf761a88c0ab8776cff05346071e10c974ca31565627cfcedd7f1d795f91" data-inscription="3e13d3898c0afa3c5fb58321d8a0b314e6f5919f665f353fa9a0be45d7ee40b0i0">
+                        <td>2024-04-16</td>
+                        <td>01:21:47</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/5eeacf761a88c0ab8776cff05346071e10c974ca31565627cfcedd7f1d795f91" target="_blank" class="txid-link" title="5eeacf761a88c0ab8776cff05346071e10c974ca31565627cfcedd7f1d795f91">5eeacf761a88c0ab...</a></td>
+                        <td class="inscription-id" title="3e13d3898c0afa3c5fb58321d8a0b314e6f5919f665f353fa9a0be45d7ee40b0i0">3e13d3898c0afa3c5fb5...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-04-19" data-txid="ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f" data-inscription="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i0">
+                        <td>2024-04-19</td>
+                        <td>17:39:37</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f" target="_blank" class="txid-link" title="ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f">ed623abdb0288911...</a></td>
+                        <td class="inscription-id" title="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i0">b5012d70218ffa6c3984...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-04-19" data-txid="ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f" data-inscription="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i1">
+                        <td>2024-04-19</td>
+                        <td>17:39:37</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f" target="_blank" class="txid-link" title="ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f">ed623abdb0288911...</a></td>
+                        <td class="inscription-id" title="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i1">b5012d70218ffa6c3984...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-04-20" data-txid="641746e37c489d833bdcadf1e614382f6d9c707a151a8c233b03badbabd21d3e" data-inscription="93d4ec8f4b1ade643efbc0485a770fe36b47d8206d2190ef9e4ace6a8469c4ffi0">
+                        <td>2024-04-20</td>
+                        <td>22:51:46</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/641746e37c489d833bdcadf1e614382f6d9c707a151a8c233b03badbabd21d3e" target="_blank" class="txid-link" title="641746e37c489d833bdcadf1e614382f6d9c707a151a8c233b03badbabd21d3e">641746e37c489d83...</a></td>
+                        <td class="inscription-id" title="93d4ec8f4b1ade643efbc0485a770fe36b47d8206d2190ef9e4ace6a8469c4ffi0">93d4ec8f4b1ade643efb...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-04-21" data-txid="5df70fd0ef16506034e0d0479851a0eafa710954e7a855d394fdd45ab6b5f2f3" data-inscription="b5700030e9be535ad238eee1af88e6ceae9299910d5b8017fe089080ba0a0e4bi0">
+                        <td>2024-04-21</td>
+                        <td>06:15:06</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/5df70fd0ef16506034e0d0479851a0eafa710954e7a855d394fdd45ab6b5f2f3" target="_blank" class="txid-link" title="5df70fd0ef16506034e0d0479851a0eafa710954e7a855d394fdd45ab6b5f2f3">5df70fd0ef165060...</a></td>
+                        <td class="inscription-id" title="b5700030e9be535ad238eee1af88e6ceae9299910d5b8017fe089080ba0a0e4bi0">b5700030e9be535ad238...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-04-24" data-txid="6b137e008cab2c3c7e3e6b10590f63d9ca48d19406f0859884f8f56ddc200a65" data-inscription="b5700030e9be535ad238eee1af88e6ceae9299910d5b8017fe089080ba0a0e4bi0">
+                        <td>2024-04-24</td>
+                        <td>15:50:39</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/6b137e008cab2c3c7e3e6b10590f63d9ca48d19406f0859884f8f56ddc200a65" target="_blank" class="txid-link" title="6b137e008cab2c3c7e3e6b10590f63d9ca48d19406f0859884f8f56ddc200a65">6b137e008cab2c3c...</a></td>
+                        <td class="inscription-id" title="b5700030e9be535ad238eee1af88e6ceae9299910d5b8017fe089080ba0a0e4bi0">b5700030e9be535ad238...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-04-30" data-txid="34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91" data-inscription="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i0">
+                        <td>2024-04-30</td>
+                        <td>12:12:41</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91" target="_blank" class="txid-link" title="34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91">34f782dce2869bbf...</a></td>
+                        <td class="inscription-id" title="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i0">b5012d70218ffa6c3984...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-04-30" data-txid="34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91" data-inscription="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i1">
+                        <td>2024-04-30</td>
+                        <td>12:12:41</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91" target="_blank" class="txid-link" title="34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91">34f782dce2869bbf...</a></td>
+                        <td class="inscription-id" title="b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i1">b5012d70218ffa6c3984...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-07-17" data-txid="7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446" data-inscription="63dc1d8ac806c27d45a6aa608bd8a73b2a1dd99a5c1f4e32a780795e18231b45i0">
+                        <td>2024-07-17</td>
+                        <td>18:55:28</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446" target="_blank" class="txid-link" title="7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446">7b4840fa0d05d09a...</a></td>
+                        <td class="inscription-id" title="63dc1d8ac806c27d45a6aa608bd8a73b2a1dd99a5c1f4e32a780795e18231b45i0">63dc1d8ac806c27d45a6...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-07-17" data-txid="7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446" data-inscription="9918cdf8b02b281d25b0d6bdb809715d7f6d7351223cf51060fd2746c829f5f0i0">
+                        <td>2024-07-17</td>
+                        <td>18:55:28</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446" target="_blank" class="txid-link" title="7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446">7b4840fa0d05d09a...</a></td>
+                        <td class="inscription-id" title="9918cdf8b02b281d25b0d6bdb809715d7f6d7351223cf51060fd2746c829f5f0i0">9918cdf8b02b281d25b0...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-07-18" data-txid="c207fc5f3688a3c366b3119d51718eaf4e344529850bbd5276bd961dfb01f52c" data-inscription="9918cdf8b02b281d25b0d6bdb809715d7f6d7351223cf51060fd2746c829f5f0i0">
+                        <td>2024-07-18</td>
+                        <td>00:17:48</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/c207fc5f3688a3c366b3119d51718eaf4e344529850bbd5276bd961dfb01f52c" target="_blank" class="txid-link" title="c207fc5f3688a3c366b3119d51718eaf4e344529850bbd5276bd961dfb01f52c">c207fc5f3688a3c3...</a></td>
+                        <td class="inscription-id" title="9918cdf8b02b281d25b0d6bdb809715d7f6d7351223cf51060fd2746c829f5f0i0">9918cdf8b02b281d25b0...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2024-07-18" data-txid="a1588cf8a1bc3794e13455514a52c7cd1a277292c24321333c851fb5861a0621" data-inscription="63dc1d8ac806c27d45a6aa608bd8a73b2a1dd99a5c1f4e32a780795e18231b45i0">
+                        <td>2024-07-18</td>
+                        <td>05:07:58</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/a1588cf8a1bc3794e13455514a52c7cd1a277292c24321333c851fb5861a0621" target="_blank" class="txid-link" title="a1588cf8a1bc3794e13455514a52c7cd1a277292c24321333c851fb5861a0621">a1588cf8a1bc3794...</a></td>
+                        <td class="inscription-id" title="63dc1d8ac806c27d45a6aa608bd8a73b2a1dd99a5c1f4e32a780795e18231b45i0">63dc1d8ac806c27d45a6...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-07-19" data-txid="1ebc2e745e5cc29bb6ad484e1d336cdc4d49b6ebd39a8216c6f5e82ae9beffdf" data-inscription="d734683bd3b5a0f9130cb0728657efd859894ca7dc45714c7118bfb96ef4d583i0">
+                        <td>2024-07-19</td>
+                        <td>16:13:10</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class="debit btc-amount">0.12845500</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000241</td>
+                        <td class="balance btc-amount">0.12845500</td>
+                        <td class="btc-amount">0.12845500</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/1ebc2e745e5cc29bb6ad484e1d336cdc4d49b6ebd39a8216c6f5e82ae9beffdf" target="_blank" class="txid-link" title="1ebc2e745e5cc29bb6ad484e1d336cdc4d49b6ebd39a8216c6f5e82ae9beffdf">1ebc2e745e5cc29b...</a></td>
+                        <td class="inscription-id" title="d734683bd3b5a0f9130cb0728657efd859894ca7dc45714c7118bfb96ef4d583i0">d734683bd3b5a0f9130c...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-11-12" data-txid="53d097eb364df168e79d8fb48b3e1dd2e24ebd43bb1d724e2f6b0d4ca45d6042" data-inscription="9f3c5637f24292937c4e91bcf865a0d92cd4dec93a57531611313b00a79e9895i0">
+                        <td>2024-11-12</td>
+                        <td>16:00:46</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.12845500</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/53d097eb364df168e79d8fb48b3e1dd2e24ebd43bb1d724e2f6b0d4ca45d6042" target="_blank" class="txid-link" title="53d097eb364df168e79d8fb48b3e1dd2e24ebd43bb1d724e2f6b0d4ca45d6042">53d097eb364df168...</a></td>
+                        <td class="inscription-id" title="9f3c5637f24292937c4e91bcf865a0d92cd4dec93a57531611313b00a79e9895i0">9f3c5637f24292937c4e...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2024-11-21" data-txid="ebf5a87ad14cda0ece4d26684e08acb5c3eba0823152745f72f0da1d2f571c2c" data-inscription="7ae637cf3c589a18d10722e53a926d03f7521300b7929e4e9dcf05e884a63e9di0">
+                        <td>2024-11-21</td>
+                        <td>06:18:57</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.12845500</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/ebf5a87ad14cda0ece4d26684e08acb5c3eba0823152745f72f0da1d2f571c2c" target="_blank" class="txid-link" title="ebf5a87ad14cda0ece4d26684e08acb5c3eba0823152745f72f0da1d2f571c2c">ebf5a87ad14cda0e...</a></td>
+                        <td class="inscription-id" title="7ae637cf3c589a18d10722e53a926d03f7521300b7929e4e9dcf05e884a63e9di0">7ae637cf3c589a18d107...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="receive" data-type="RECEIVE" data-date="2025-01-03" data-txid="350d23743ead6f0ed895b739a71108fc2ab20d09a42ebaa3cf91052213b72bb9" data-inscription="34a2eff48ad53c606ad9a3d5485f96c7aaaa67e2dae618bea60584cddf78aac3i0">
+                        <td>2025-01-03</td>
+                        <td>02:12:01</td>
+                        <td><span class="type-badge receive">RECEIVE</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.12845500</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/350d23743ead6f0ed895b739a71108fc2ab20d09a42ebaa3cf91052213b72bb9" target="_blank" class="txid-link" title="350d23743ead6f0ed895b739a71108fc2ab20d09a42ebaa3cf91052213b72bb9">350d23743ead6f0e...</a></td>
+                        <td class="inscription-id" title="34a2eff48ad53c606ad9a3d5485f96c7aaaa67e2dae618bea60584cddf78aac3i0">34a2eff48ad53c606ad9...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2025-08-11" data-txid="cad6aba6e7d6b811663f40441e49f78aea584bc882f0b7659bbe438ea497bb58" data-inscription="941fd32ec45d6990b1efdb59c9a38dd8c75482216c27dd7eaa8c69a708488a72i852">
+                        <td>2025-08-11</td>
+                        <td>22:04:18</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.12845500</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/cad6aba6e7d6b811663f40441e49f78aea584bc882f0b7659bbe438ea497bb58" target="_blank" class="txid-link" title="cad6aba6e7d6b811663f40441e49f78aea584bc882f0b7659bbe438ea497bb58">cad6aba6e7d6b811...</a></td>
+                        <td class="inscription-id" title="941fd32ec45d6990b1efdb59c9a38dd8c75482216c27dd7eaa8c69a708488a72i852">941fd32ec45d6990b1ef...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2025-12-09" data-txid="fea924b0920bede05a694eef6194023dc24406396b2236d89ecbfeb105ebd357" data-inscription="897bf16ccf5cd6fff8903fe32c50a1b59ba49d967ca0aa50122696933c499ce4i67">
+                        <td>2025-12-09</td>
+                        <td>18:29:55</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class="balance btc-amount">0.12845500</td>
+                        <td class="btc-amount">0.00000000</td>
+                        <td class=" btc-amount">+0.00000000</td>
+                        <td><a href="https://ordiscan.com/tx/fea924b0920bede05a694eef6194023dc24406396b2236d89ecbfeb105ebd357" target="_blank" class="txid-link" title="fea924b0920bede05a694eef6194023dc24406396b2236d89ecbfeb105ebd357">fea924b0920bede0...</a></td>
+                        <td class="inscription-id" title="897bf16ccf5cd6fff8903fe32c50a1b59ba49d967ca0aa50122696933c499ce4i67">897bf16ccf5cd6fff890...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                    <tr class="send" data-type="SEND" data-date="2025-12-09" data-txid="316795e360a8f7e33e0bdcecb83889e5965265de0532bea43c60e2a3209dfa06" data-inscription="d734683bd3b5a0f9130cb0728657efd859894ca7dc45714c7118bfb96ef4d583i0">
+                        <td>2025-12-09</td>
+                        <td>18:34:01</td>
+                        <td><span class="type-badge send">SEND</span></td>
+                        <td class=" btc-amount">0.00000000</td>
+                        <td class="credit btc-amount">0.01409965</td>
+                        <td class="btc-amount">0.00000241</td>
+                        <td class="balance btc-amount">0.11435535</td>
+                        <td class="btc-amount">0.12845500</td>
+                        <td class="loss btc-amount">-0.11435535</td>
+                        <td><a href="https://ordiscan.com/tx/316795e360a8f7e33e0bdcecb83889e5965265de0532bea43c60e2a3209dfa06" target="_blank" class="txid-link" title="316795e360a8f7e33e0bdcecb83889e5965265de0532bea43c60e2a3209dfa06">316795e360a8f7e3...</a></td>
+                        <td class="inscription-id" title="d734683bd3b5a0f9130cb0728657efd859894ca7dc45714c7118bfb96ef4d583i0">d734683bd3b5a0f9130c...</td>
+                        <td><span class="confirmed-badge yes">Yes</span></td>
+                    </tr>
+
+                </tbody>
+            </table>
+            <div id="noResults" class="no-results" style="display: none;">
+                No transactions match your filters.
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This tax ledger was generated from Ordiscan API data</p>
+            <p>For accounting and tax reporting purposes - FIFO Cost Basis Method</p>
+        </div>
+    </div>
+    
+    <script>
+        // Filter functionality
+        const typeFilter = document.getElementById('typeFilter');
+        const dateFilterStart = document.getElementById('dateFilterStart');
+        const dateFilterEnd = document.getElementById('dateFilterEnd');
+        const searchBox = document.getElementById('searchBox');
+        const ledgerBody = document.getElementById('ledgerBody');
+        const noResults = document.getElementById('noResults');
+        const rows = Array.from(ledgerBody.querySelectorAll('tr'));
+        
+        function filterTable() {
+            const typeValue = typeFilter.value;
+            const dateStart = dateFilterStart.value;
+            const dateEnd = dateFilterEnd.value;
+            const searchValue = searchBox.value.toLowerCase();
+            
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                const rowType = row.dataset.type;
+                const rowDate = row.dataset.date;
+                const rowTxid = row.dataset.txid.toLowerCase();
+                const rowInscription = row.dataset.inscription.toLowerCase();
+                
+                let visible = true;
+                
+                // Type filter
+                if (typeValue !== 'all' && rowType !== typeValue) {
+                    visible = false;
+                }
+                
+                // Date filter
+                if (dateStart && rowDate < dateStart) {
+                    visible = false;
+                }
+                if (dateEnd && rowDate > dateEnd) {
+                    visible = false;
+                }
+                
+                // Search filter
+                if (searchValue && !rowTxid.includes(searchValue) && !rowInscription.includes(searchValue)) {
+                    visible = false;
+                }
+                
+                if (visible) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Show/hide no results message
+            if (visibleCount === 0) {
+                noResults.style.display = 'block';
+                ledgerBody.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                ledgerBody.style.display = '';
+            }
+        }
+        
+        function resetFilters() {
+            typeFilter.value = 'all';
+            dateFilterStart.value = '';
+            dateFilterEnd.value = '';
+            searchBox.value = '';
+            filterTable();
+        }
+        
+        // Add event listeners
+        typeFilter.addEventListener('change', filterTable);
+        dateFilterStart.addEventListener('change', filterTable);
+        dateFilterEnd.addEventListener('change', filterTable);
+        searchBox.addEventListener('input', filterTable);
+        
+        // Sort table on header click
+        document.querySelectorAll('th').forEach((th, index) => {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => {
+                const tbody = ledgerBody;
+                const rows = Array.from(tbody.querySelectorAll('tr:not([style*="display: none"])'));
+                
+                const isAscending = th.dataset.sort === 'asc';
+                th.dataset.sort = isAscending ? 'desc' : 'asc';
+                
+                rows.sort((a, b) => {
+                    const aText = a.cells[index].textContent.trim();
+                    const bText = b.cells[index].textContent.trim();
+                    
+                    // Try numeric comparison
+                    const aNum = parseFloat(aText);
+                    const bNum = parseFloat(bText);
+                    
+                    if (!isNaN(aNum) && !isNaN(bNum)) {
+                        return isAscending ? bNum - aNum : aNum - bNum;
+                    }
+                    
+                    // String comparison
+                    return isAscending 
+                        ? bText.localeCompare(aText)
+                        : aText.localeCompare(bText);
+                });
+                
+                rows.forEach(row => tbody.appendChild(row));
+            });
+        });
+    </script>
+</body>
+</html>

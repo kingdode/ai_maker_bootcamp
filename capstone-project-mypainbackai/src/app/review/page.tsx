@@ -24,11 +24,30 @@ interface FileForReview {
   analysis?: FileAnalysis;
 }
 
+interface GroupAnalysis {
+  groupId: string;
+  groupName: string;
+  analyzedAt: string;
+  category: string;
+  date: string | null;
+  provider: string | null;
+  bodyRegion: string | null;
+  summary: string;
+  suggestedTitle: string;
+  hasImaging: boolean;
+  imagingSummary?: string;
+  imagingFiles?: string[];
+  confidence: number;
+}
+
 interface FileGroup {
   groupId: string;
   groupName: string;
   files: FileForReview[];
   isExpanded: boolean;
+  isZipGroup: boolean;
+  groupAnalysis?: GroupAnalysis;
+  analyzingGroup?: boolean;
 }
 
 export default function ReviewPage() {
@@ -74,10 +93,13 @@ export default function ReviewPage() {
       );
       
       const groups = groupFilesByBatch(filesWithAnalysis);
-      setFileGroups(groups);
       
-      if (groups.length > 0 && groups[0].files.length > 0 && !selectedFile) {
-        selectFile(groups[0].files[0]);
+      // Fetch group analyses for ZIP groups
+      const groupsWithAnalysis = await fetchGroupAnalyses(groups);
+      setFileGroups(groupsWithAnalysis);
+      
+      if (groupsWithAnalysis.length > 0 && groupsWithAnalysis[0].files.length > 0 && !selectedFile) {
+        selectFile(groupsWithAnalysis[0].files[0]);
       }
     } catch (error) {
       console.error("Error fetching review files:", error);
@@ -102,10 +124,10 @@ export default function ReviewPage() {
 
     const groups: FileGroup[] = [];
     groupMap.forEach((groupFiles, groupId) => {
-      const hasZipFiles = groupFiles.some(f => f.id.includes("-zip-"));
+      const isZipGroup = groupFiles.some(f => f.id.includes("-zip-"));
       
       let groupName = "Upload Group";
-      if (hasZipFiles && groupFiles.length > 1) {
+      if (isZipGroup && groupFiles.length > 1) {
         groupName = `📦 ZIP Archive (${groupFiles.length} files)`;
       } else if (groupFiles.length > 1) {
         groupName = `📂 Upload Batch (${groupFiles.length} files)`;
@@ -118,6 +140,7 @@ export default function ReviewPage() {
         groupName,
         files: groupFiles,
         isExpanded: true,
+        isZipGroup,
       });
     });
 
@@ -128,6 +151,77 @@ export default function ReviewPage() {
     });
 
     return groups;
+  };
+
+  // Fetch group analysis for ZIP groups
+  const fetchGroupAnalyses = async (groups: FileGroup[]): Promise<FileGroup[]> => {
+    const updatedGroups = await Promise.all(
+      groups.map(async (group) => {
+        if (group.isZipGroup && group.files.length > 1) {
+          try {
+            const res = await fetch(`/api/ai/analyze-group?groupId=${group.groupId}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.analyzed && data.analysis) {
+                return {
+                  ...group,
+                  groupAnalysis: data.analysis,
+                  groupName: data.analysis.suggestedTitle || group.groupName,
+                };
+              }
+            }
+          } catch (e) {
+            // Group not analyzed yet
+          }
+        }
+        return group;
+      })
+    );
+    return updatedGroups;
+  };
+
+  // Analyze a group of files together
+  const analyzeGroup = async (group: FileGroup) => {
+    setFileGroups(prev => prev.map(g => 
+      g.groupId === group.groupId ? { ...g, analyzingGroup: true } : g
+    ));
+
+    try {
+      const response = await fetch("/api/ai/analyze-group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId: group.groupId,
+          fileIds: group.files.map(f => f.id),
+          groupName: group.groupName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to analyze group");
+      }
+
+      const result = await response.json();
+      
+      setFileGroups(prev => prev.map(g => 
+        g.groupId === group.groupId 
+          ? { 
+              ...g, 
+              groupAnalysis: result.analysis, 
+              groupName: result.analysis.suggestedTitle || g.groupName,
+              analyzingGroup: false 
+            } 
+          : g
+      ));
+
+      setMessage({ type: "success", text: `Group analyzed: ${result.analysis.suggestedTitle}` });
+    } catch (error: any) {
+      setMessage({ type: "error", text: error.message });
+      setFileGroups(prev => prev.map(g => 
+        g.groupId === group.groupId ? { ...g, analyzingGroup: false } : g
+      ));
+    }
   };
 
   useEffect(() => {
@@ -340,7 +434,10 @@ export default function ReviewPage() {
           ) : (
             <div style={styles.groupList}>
               {fileGroups.map((group) => (
-                <div key={group.groupId} style={styles.groupCard}>
+                <div key={group.groupId} style={{
+                  ...styles.groupCard,
+                  borderColor: group.groupAnalysis ? "#10b981" : group.isZipGroup ? "#8b5cf6" : "#2a2a3a",
+                }}>
                   <div
                     style={styles.groupHeader}
                     onClick={() => toggleGroup(group.groupId)}
@@ -349,20 +446,63 @@ export default function ReviewPage() {
                       <span style={styles.expandIcon}>
                         {group.isExpanded ? "▼" : "▶"}
                       </span>
-                      <span style={styles.groupName}>{group.groupName}</span>
+                      <span style={styles.groupName}>
+                        {group.groupAnalysis?.suggestedTitle || group.groupName}
+                      </span>
+                      {group.groupAnalysis?.hasImaging && (
+                        <span style={{ fontSize: "10px", marginLeft: "4px" }}>🔬</span>
+                      )}
                     </div>
-                    {group.files.length > 1 && (
-                      <button
-                        style={styles.confirmGroupButton}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleConfirmGroup(group.groupId);
-                        }}
-                      >
-                        ✓ All
-                      </button>
-                    )}
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      {group.isZipGroup && group.files.length > 1 && !group.groupAnalysis && (
+                        <button
+                          style={{
+                            ...styles.analyzeGroupButton,
+                            opacity: group.analyzingGroup ? 0.5 : 1,
+                          }}
+                          disabled={group.analyzingGroup}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            analyzeGroup(group);
+                          }}
+                        >
+                          {group.analyzingGroup ? "..." : "🤖 Analyze"}
+                        </button>
+                      )}
+                      {group.files.length > 1 && group.groupAnalysis && (
+                        <button
+                          style={styles.confirmGroupButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleConfirmGroup(group.groupId);
+                          }}
+                        >
+                          ✓ All
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Group Analysis Summary */}
+                  {group.groupAnalysis && group.isExpanded && (
+                    <div style={styles.groupAnalysisSummary}>
+                      <div style={styles.groupAnalysisRow}>
+                        <span style={{ color: "#6b6b80" }}>📅</span>
+                        <span>{group.groupAnalysis.date || "Date unknown"}</span>
+                        <span style={{ color: "#6b6b80", marginLeft: "12px" }}>🏥</span>
+                        <span>{group.groupAnalysis.provider || "Provider unknown"}</span>
+                      </div>
+                      <div style={styles.groupAnalysisSummaryText}>
+                        {group.groupAnalysis.summary}
+                      </div>
+                      {group.groupAnalysis.hasImaging && group.groupAnalysis.imagingSummary && (
+                        <div style={styles.imagingSummaryBox}>
+                          <span style={{ fontWeight: 600, color: "#10b981" }}>🔬 Imaging:</span>
+                          <span style={{ marginLeft: "8px" }}>{group.groupAnalysis.imagingSummary}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {group.isExpanded && (
                     <div style={styles.groupFiles}>
                       {group.files.map((file) => (
@@ -925,6 +1065,43 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none",
     cursor: "pointer",
     flexShrink: 0,
+  },
+  analyzeGroupButton: {
+    padding: "3px 8px",
+    borderRadius: "4px",
+    background: "#8b5cf6",
+    color: "#fff",
+    fontSize: "10px",
+    fontWeight: 500,
+    border: "none",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  groupAnalysisSummary: {
+    padding: "10px 12px",
+    background: "rgba(16, 185, 129, 0.08)",
+    borderTop: "1px solid rgba(16, 185, 129, 0.2)",
+  },
+  groupAnalysisRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    fontSize: "11px",
+    color: "#9494a8",
+    marginBottom: "6px",
+  },
+  groupAnalysisSummaryText: {
+    fontSize: "12px",
+    color: "#f0f0f5",
+    lineHeight: 1.4,
+  },
+  imagingSummaryBox: {
+    marginTop: "8px",
+    padding: "8px",
+    background: "rgba(16, 185, 129, 0.1)",
+    borderRadius: "4px",
+    fontSize: "11px",
+    color: "#9494a8",
   },
   groupFiles: {
     padding: "4px",

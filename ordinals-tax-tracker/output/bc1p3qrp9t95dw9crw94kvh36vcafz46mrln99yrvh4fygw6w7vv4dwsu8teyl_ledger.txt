@@ -1,0 +1,277 @@
+========================================================================================================================
+CPA-STYLE TRANSACTION LEDGER
+========================================================================================================================
+Address: bc1p3qrp9t95dw9crw94kvh36vcafz46mrln99yrvh4fygw6w7vv4dwsu8teyl
+Period: 2024-03-12 to 2025-12-09
+Total Transactions: 22
+========================================================================================================================
+
+Date         Time       Ref                Type     Debit    Credit   Balance    Description                             
+------------------------------------------------------------------------------------------------------------------------
+2024-03-12   14:53:22   0a2bd03bae5429fa... RECEIVE  1        0        1.0        Inscription: 897bf16ccf5cd6ff... | To/Fr
+2024-03-14   23:41:01   57d8ff2cfdceacdd... RECEIVE  1        0        2.0        Inscription: 941fd32ec45d6990... | To/Fr
+2024-04-10   21:59:31   2b125b6b58c7ab1f... SEND     0        1        1.0        Inscription: 8322821411450950... | To/Fr
+2024-04-16   01:21:47   5eeacf761a88c0ab... SEND     0        1        0.0        Inscription: 3e13d3898c0afa3c... | To/Fr
+2024-04-19   17:39:37   ed623abdb0288911... RECEIVE  1        0        1.0        Inscription: b5012d70218ffa6c... | To/Fr
+2024-04-19   17:39:37   ed623abdb0288911... RECEIVE  1        0        2.0        Inscription: b5012d70218ffa6c... | To/Fr
+2024-04-20   22:51:46   641746e37c489d83... RECEIVE  1        0        3.0        Inscription: 93d4ec8f4b1ade64... | To/Fr
+2024-04-21   06:15:06   5df70fd0ef165060... RECEIVE  1        0        4.0        Inscription: b5700030e9be535a... | To/Fr
+2024-04-24   15:50:39   6b137e008cab2c3c... SEND     0        1        3.0        Inscription: b5700030e9be535a... | To/Fr
+2024-04-30   12:12:41   34f782dce2869bbf... SEND     0        1        2.0        Inscription: b5012d70218ffa6c... | To/Fr
+2024-04-30   12:12:41   34f782dce2869bbf... SEND     0        1        1.0        Inscription: b5012d70218ffa6c... | To/Fr
+2024-07-17   18:55:28   7b4840fa0d05d09a... RECEIVE  1        0        2.0        Inscription: 63dc1d8ac806c27d... | To/Fr
+2024-07-17   18:55:28   7b4840fa0d05d09a... RECEIVE  1        0        3.0        Inscription: 9918cdf8b02b281d... | To/Fr
+2024-07-18   00:17:48   c207fc5f3688a3c3... SEND     0        1        2.0        Inscription: 9918cdf8b02b281d... | To/Fr
+2024-07-18   05:07:58   a1588cf8a1bc3794... SEND     0        1        1.0        Inscription: 63dc1d8ac806c27d... | To/Fr
+2024-07-19   16:13:10   1ebc2e745e5cc29b... RECEIVE  1        0        2.0        Inscription: d734683bd3b5a0f9... | To/Fr
+2024-11-12   16:00:46   53d097eb364df168... RECEIVE  1        0        3.0        Inscription: 9f3c5637f2429293... | To/Fr
+2024-11-21   06:18:57   ebf5a87ad14cda0e... RECEIVE  1        0        4.0        Inscription: 7ae637cf3c589a18... | To/Fr
+2025-01-03   02:12:01   350d23743ead6f0e... RECEIVE  1        0        5.0        Inscription: 34a2eff48ad53c60... | To/Fr
+2025-08-11   22:04:18   cad6aba6e7d6b811... SEND     0        1        4.0        Inscription: 941fd32ec45d6990... | To/Fr
+2025-12-09   18:29:55   fea924b0920bede0... SEND     0        1        3.0        Inscription: 897bf16ccf5cd6ff... | To/Fr
+2025-12-09   18:34:01   316795e360a8f7e3... SEND     0        1        2.0        Inscription: d734683bd3b5a0f9... | To/Fr
+
+========================================================================================================================
+SUMMARY STATISTICS
+========================================================================================================================
+Inscriptions Received: 12
+Inscriptions Sent: 10
+Net Balance: 2
+
+Transactions by Type:
+  RECEIVE: 12
+  SEND: 10
+
+Transactions by Month:
+  2024-03: Received=2, Sent=0
+  2024-04: Received=4, Sent=5
+  2024-07: Received=3, Sent=2
+  2024-11: Received=2, Sent=0
+  2025-01: Received=1, Sent=0
+  2025-08: Received=0, Sent=1
+  2025-12: Received=0, Sent=2
+
+========================================================================================================================
+DETAILED TRANSACTION LIST
+========================================================================================================================
+
+Entry #1
+  Date: 2024-03-12 14:53:22
+  Type: RECEIVE
+  Transaction ID: 0a2bd03bae5429fa5e9627e0bb26df7e0722b39376dbcf9297f9bf21db4bc09f
+  Inscription ID: 897bf16ccf5cd6fff8903fe32c50a1b59ba49d967ca0aa50122696933c499ce4i67
+  Counterpart: bc1p4ap6hmlvgtz2kg546764ah0zwn9eusnx7v84zu8rh8tzs7zx7nfsrwkfvy
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 897bf16ccf5cd6ff... | To/From: bc1p4ap6hmlvgtz2...
+
+Entry #2
+  Date: 2024-03-14 23:41:01
+  Type: RECEIVE
+  Transaction ID: 57d8ff2cfdceacddaeea5e760ac5c843efd8de051de976e3e599437329ba5e71
+  Inscription ID: 941fd32ec45d6990b1efdb59c9a38dd8c75482216c27dd7eaa8c69a708488a72i852
+  Counterpart: bc1p3wwt4je8dr2ke7pms30jlrpplrcupuvzt802958zsf48u27hcumqz0jedh
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 941fd32ec45d6990... | To/From: bc1p3wwt4je8dr2k...
+
+Entry #3
+  Date: 2024-04-10 21:59:31
+  Type: SEND
+  Transaction ID: 2b125b6b58c7ab1f9264be1043396e36d19614a5008dafbe5c812dd060ef0e91
+  Inscription ID: 8322821411450950953a840883f76903f24646f570b0842f1e251e7dde9f6891i0
+  Counterpart: bc1p3qrp9t95dw9crw94kvh36vcafz46mrln99yrvh4fygw6w7vv4dwsu8teyl
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 8322821411450950... | To/From: bc1p3qrp9t95dw9c...
+
+Entry #4
+  Date: 2024-04-16 01:21:47
+  Type: SEND
+  Transaction ID: 5eeacf761a88c0ab8776cff05346071e10c974ca31565627cfcedd7f1d795f91
+  Inscription ID: 3e13d3898c0afa3c5fb58321d8a0b314e6f5919f665f353fa9a0be45d7ee40b0i0
+  Counterpart: bc1ppdt4hh0hza4umld6s7thtyjt2v23xf4xqntcx52t2tr5trzxwm8q64eghy
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 3e13d3898c0afa3c... | To/From: bc1ppdt4hh0hza4u...
+
+Entry #5
+  Date: 2024-04-19 17:39:37
+  Type: RECEIVE
+  Transaction ID: ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f
+  Inscription ID: b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i0
+  Counterpart: bc1pyu2fqm4petdft2cnluyngpg4l5cc5w0def7z8ns3vlgt0mjqvzksq2hhpe
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: b5012d70218ffa6c... | To/From: bc1pyu2fqm4petdf...
+
+Entry #6
+  Date: 2024-04-19 17:39:37
+  Type: RECEIVE
+  Transaction ID: ed623abdb0288911322e7eb143b1b341d5ec6a5ed8edbcb166e6fa0f0014af7f
+  Inscription ID: b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i1
+  Counterpart: bc1pyu2fqm4petdft2cnluyngpg4l5cc5w0def7z8ns3vlgt0mjqvzksq2hhpe
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: b5012d70218ffa6c... | To/From: bc1pyu2fqm4petdf...
+
+Entry #7
+  Date: 2024-04-20 22:51:46
+  Type: RECEIVE
+  Transaction ID: 641746e37c489d833bdcadf1e614382f6d9c707a151a8c233b03badbabd21d3e
+  Inscription ID: 93d4ec8f4b1ade643efbc0485a770fe36b47d8206d2190ef9e4ace6a8469c4ffi0
+  Counterpart: bc1pxy4x6f4yuxs5hxjlf270j49vsuxqcrypyjlw5x7vtcsr3m67epwsafvsv9
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 93d4ec8f4b1ade64... | To/From: bc1pxy4x6f4yuxs5...
+
+Entry #8
+  Date: 2024-04-21 06:15:06
+  Type: RECEIVE
+  Transaction ID: 5df70fd0ef16506034e0d0479851a0eafa710954e7a855d394fdd45ab6b5f2f3
+  Inscription ID: b5700030e9be535ad238eee1af88e6ceae9299910d5b8017fe089080ba0a0e4bi0
+  Counterpart: bc1pmezktt8k82tudrzqducdyrysywjj2r5pzj4yyrj8kdawhkk567js6f0aj5
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: b5700030e9be535a... | To/From: bc1pmezktt8k82tu...
+
+Entry #9
+  Date: 2024-04-24 15:50:39
+  Type: SEND
+  Transaction ID: 6b137e008cab2c3c7e3e6b10590f63d9ca48d19406f0859884f8f56ddc200a65
+  Inscription ID: b5700030e9be535ad238eee1af88e6ceae9299910d5b8017fe089080ba0a0e4bi0
+  Counterpart: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: b5700030e9be535a... | To/From: 1A1zP1eP5QGefi2D...
+
+Entry #10
+  Date: 2024-04-30 12:12:41
+  Type: SEND
+  Transaction ID: 34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91
+  Inscription ID: b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i0
+  Counterpart: bc1pypr4uw0vfev3mdk9yekxt4fqkvm2ypxwafj3t0p752hkz88wp50qmhed08
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: b5012d70218ffa6c... | To/From: bc1pypr4uw0vfev3...
+
+Entry #11
+  Date: 2024-04-30 12:12:41
+  Type: SEND
+  Transaction ID: 34f782dce2869bbf97b359c5e4180e7a3c8c1a9d0c40dd0bd1b17ecba02d5c91
+  Inscription ID: b5012d70218ffa6c3984be247ce92947f7541bbd28a5c77b50bd3c0ac88d0104i1
+  Counterpart: bc1pypr4uw0vfev3mdk9yekxt4fqkvm2ypxwafj3t0p752hkz88wp50qmhed08
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: b5012d70218ffa6c... | To/From: bc1pypr4uw0vfev3...
+
+Entry #12
+  Date: 2024-07-17 18:55:28
+  Type: RECEIVE
+  Transaction ID: 7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446
+  Inscription ID: 63dc1d8ac806c27d45a6aa608bd8a73b2a1dd99a5c1f4e32a780795e18231b45i0
+  Counterpart: bc1p98zxqywffm5l5z3yhxnjkvqhpy4j4qh0d2s9k77h4a277jff774qrnht5d
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 63dc1d8ac806c27d... | To/From: bc1p98zxqywffm5l...
+
+Entry #13
+  Date: 2024-07-17 18:55:28
+  Type: RECEIVE
+  Transaction ID: 7b4840fa0d05d09a3488fdc583409e1014b03b51856c21c84f61892675df1446
+  Inscription ID: 9918cdf8b02b281d25b0d6bdb809715d7f6d7351223cf51060fd2746c829f5f0i0
+  Counterpart: bc1pkvcv2eg92grdcmgg3r72ngygfmwnyq76zdagtczwv78hdjcrwzxsv5d46r
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 9918cdf8b02b281d... | To/From: bc1pkvcv2eg92grd...
+
+Entry #14
+  Date: 2024-07-18 00:17:48
+  Type: SEND
+  Transaction ID: c207fc5f3688a3c366b3119d51718eaf4e344529850bbd5276bd961dfb01f52c
+  Inscription ID: 9918cdf8b02b281d25b0d6bdb809715d7f6d7351223cf51060fd2746c829f5f0i0
+  Counterpart: bc1pd64zq3ztld43ed6tp075p254wptl22pcnu05upsgyzvucrxprwps523y66
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 9918cdf8b02b281d... | To/From: bc1pd64zq3ztld43...
+
+Entry #15
+  Date: 2024-07-18 05:07:58
+  Type: SEND
+  Transaction ID: a1588cf8a1bc3794e13455514a52c7cd1a277292c24321333c851fb5861a0621
+  Inscription ID: 63dc1d8ac806c27d45a6aa608bd8a73b2a1dd99a5c1f4e32a780795e18231b45i0
+  Counterpart: bc1qkzrppa5q35z2d4s0k4z578pff4a0yj2np5xuvp
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 63dc1d8ac806c27d... | To/From: bc1qkzrppa5q35z2...
+
+Entry #16
+  Date: 2024-07-19 16:13:10
+  Type: RECEIVE
+  Transaction ID: 1ebc2e745e5cc29bb6ad484e1d336cdc4d49b6ebd39a8216c6f5e82ae9beffdf
+  Inscription ID: d734683bd3b5a0f9130cb0728657efd859894ca7dc45714c7118bfb96ef4d583i0
+  Counterpart: bc1qcmryhhzx2k55u9332whj6xuzsfq6zqx6c0aycc
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: d734683bd3b5a0f9... | To/From: bc1qcmryhhzx2k55...
+
+Entry #17
+  Date: 2024-11-12 16:00:46
+  Type: RECEIVE
+  Transaction ID: 53d097eb364df168e79d8fb48b3e1dd2e24ebd43bb1d724e2f6b0d4ca45d6042
+  Inscription ID: 9f3c5637f24292937c4e91bcf865a0d92cd4dec93a57531611313b00a79e9895i0
+  Counterpart: bc1payp7dlm3udthcs5e20xlgzjdfhf4aqlpnrq0mr47rjnt6kg5uhvqjc84mh
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 9f3c5637f2429293... | To/From: bc1payp7dlm3udth...
+
+Entry #18
+  Date: 2024-11-21 06:18:57
+  Type: RECEIVE
+  Transaction ID: ebf5a87ad14cda0ece4d26684e08acb5c3eba0823152745f72f0da1d2f571c2c
+  Inscription ID: 7ae637cf3c589a18d10722e53a926d03f7521300b7929e4e9dcf05e884a63e9di0
+  Counterpart: bc1pu4a77dnkhsra3a8q60d3y4dgzlf947xd5vwexw3052r6xatdvmmq374lzr
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 7ae637cf3c589a18... | To/From: bc1pu4a77dnkhsra...
+
+Entry #19
+  Date: 2025-01-03 02:12:01
+  Type: RECEIVE
+  Transaction ID: 350d23743ead6f0ed895b739a71108fc2ab20d09a42ebaa3cf91052213b72bb9
+  Inscription ID: 34a2eff48ad53c606ad9a3d5485f96c7aaaa67e2dae618bea60584cddf78aac3i0
+  Counterpart: bc1p4vjfkrngvrx60whau23ec62y9e8sp2wwmymec7gjvmg2f8943f2q4rrftv
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 34a2eff48ad53c60... | To/From: bc1p4vjfkrngvrx6...
+
+Entry #20
+  Date: 2025-08-11 22:04:18
+  Type: SEND
+  Transaction ID: cad6aba6e7d6b811663f40441e49f78aea584bc882f0b7659bbe438ea497bb58
+  Inscription ID: 941fd32ec45d6990b1efdb59c9a38dd8c75482216c27dd7eaa8c69a708488a72i852
+  Counterpart: bc1qlk9r8h64ytcrsjxjqx95hpx9v2l0ry0jsca260
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 941fd32ec45d6990... | To/From: bc1qlk9r8h64ytcr...
+
+Entry #21
+  Date: 2025-12-09 18:29:55
+  Type: SEND
+  Transaction ID: fea924b0920bede05a694eef6194023dc24406396b2236d89ecbfeb105ebd357
+  Inscription ID: 897bf16ccf5cd6fff8903fe32c50a1b59ba49d967ca0aa50122696933c499ce4i67
+  Counterpart: bc1pmthmdu7mrpzj827exh9kvzvyyjv2dg9uz6g0ueyt2hxxjkfhn0asx99g88
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: 897bf16ccf5cd6ff... | To/From: bc1pmthmdu7mrpzj...
+
+Entry #22
+  Date: 2025-12-09 18:34:01
+  Type: SEND
+  Transaction ID: 316795e360a8f7e33e0bdcecb83889e5965265de0532bea43c60e2a3209dfa06
+  Inscription ID: d734683bd3b5a0f9130cb0728657efd859894ca7dc45714c7118bfb96ef4d583i0
+  Counterpart: bc1pppzfw9ms7a9gk5k686c4cz69shr4f9aagrdnv2jwe75cc9288j6ss3p2ex
+  Confirmed: Yes
+  Spent as Fee: No
+  Description: Inscription: d734683bd3b5a0f9... | To/From: bc1pppzfw9ms7a9g...
+

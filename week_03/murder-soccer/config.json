@@ -1,0 +1,43 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "name": "Apocalypse Begins",
+      "wall_speed": 1.2,
+      "enemy_speed": 0.8,
+      "enemy_spawn_rate": 5000,
+      "wall_spacing": 350,
+      "wall_gap_size": 220,
+      "gravity": 0.25,
+      "flap_strength": -5.5
+    },
+    {
+      "level": 2,
+      "name": "Chaos Rising",
+      "wall_speed": 1.5,
+      "enemy_speed": 1.2,
+      "enemy_spawn_rate": 4000,
+      "wall_spacing": 300,
+      "wall_gap_size": 200,
+      "gravity": 0.28,
+      "flap_strength": -6
+    },
+    {
+      "level": 3,
+      "name": "Final Stand",
+      "wall_speed": 2,
+      "enemy_speed": 1.8,
+      "enemy_spawn_rate": 3500,
+      "wall_spacing": 280,
+      "wall_gap_size": 190,
+      "gravity": 0.32,
+      "flap_strength": -6.5
+    }
+  ],
+  "default_level": 1,
+  "screen_width": 800,
+  "screen_height": 600,
+  "player_start_x": 150,
+  "player_start_y": 300
+}
+

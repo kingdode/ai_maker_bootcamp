@@ -116,6 +116,7 @@ export interface FeaturedDeal {
   featuredPublishedAt?: string;     // When this was published as a Top Deal
   dealScore?: number;               // DealStackr score for display
   stackType?: 'Triple Stack' | 'Double Stack' | 'Stack' | 'Deal'; // Type of deal stack
+  articleContent?: string;          // Raw AI-generated article content (markdown/text)
 }
 
 export interface DashboardStats {

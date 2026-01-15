@@ -1,7 +1,22 @@
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 import AdmZip from "adm-zip";
+import { extractDicomPackageMetadata, DicomPackageMetadata } from "@/lib/dicom-parser";
+import {
+  prisma,
+  createBatch,
+  createFileGroup,
+  createUploadedFile,
+  findFileByHash,
+  getUploadedFiles,
+  getBatches,
+  saveDicomMetadata,
+  guessCategory,
+  getMimeType,
+  FileCategory,
+} from "@/lib/db";
 
 // =============================================================================
 // POST /api/upload
@@ -24,18 +39,16 @@ export async function POST(request: Request) {
 
     // Create uploads directory if it doesn't exist
     const uploadsDir = path.join(process.cwd(), "uploads", "pending");
-    const batchesDir = path.join(process.cwd(), "uploads", "batches");
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
-    if (!fs.existsSync(batchesDir)) {
-      fs.mkdirSync(batchesDir, { recursive: true });
-    }
 
-    // Generate a batch ID for this upload session
+    // Create a new batch for this upload session
+    const batch = await createBatch();
     const uploadTimestamp = Date.now();
-    const batchId = `batch-${uploadTimestamp}`;
     const uploadedFiles = [];
+    const skippedDuplicates: Array<{ filename: string; existingFile: string }> = [];
+    const groups: Record<string, string> = {}; // groupId -> group name
 
     for (const file of files) {
       const safeFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
@@ -46,37 +59,46 @@ export async function POST(request: Request) {
                     file.type === "application/x-zip-compressed";
 
       if (isZip) {
-        // Handle ZIP file - extracted files share a sub-batch (grouped by ZIP)
-        const zipBatchId = `${batchId}-zip-${safeFilename}`;
-        const extractedFiles = await handleZipFile(file, uploadsDir, uploadTimestamp, zipBatchId);
+        // Handle ZIP file - create a group for extracted files
+        const zipGroup = await createFileGroup({
+          name: file.name,
+          isZipGroup: true,
+          batchId: batch.id,
+        });
+        groups[zipGroup.id] = file.name;
+
+        const { files: extractedFiles, duplicates } = await handleZipFile(
+          file, uploadsDir, uploadTimestamp, batch.id, zipGroup.id
+        );
         uploadedFiles.push(...extractedFiles);
+        skippedDuplicates.push(...duplicates);
       } else {
-        // Handle regular file
-        const processedFile = await handleRegularFile(file, uploadsDir, uploadTimestamp, safeFilename, batchId);
-        uploadedFiles.push(processedFile);
+        // Handle regular file - create or use default group
+        const result = await handleRegularFile(
+          file, uploadsDir, uploadTimestamp, safeFilename, batch.id
+        );
+        if (result.isDuplicate) {
+          skippedDuplicates.push({
+            filename: file.name,
+            existingFile: result.existingFilename!,
+          });
+        } else if (result.file) {
+          uploadedFiles.push(result.file);
+        }
       }
     }
 
-    // Save batch metadata
-    const batchMetadata = {
-      batchId,
-      createdAt: new Date().toISOString(),
-      fileCount: uploadedFiles.length,
-      files: uploadedFiles.map(f => f.id),
-      // Group files by their sub-batch (for ZIP contents)
-      groups: groupFilesByBatch(uploadedFiles),
-    };
-    fs.writeFileSync(
-      path.join(batchesDir, `${batchId}.json`),
-      JSON.stringify(batchMetadata, null, 2)
-    );
+    const duplicateMessage = skippedDuplicates.length > 0 
+      ? ` (${skippedDuplicates.length} duplicate(s) skipped)`
+      : "";
 
     return NextResponse.json(
       {
-        batchId,
+        batchId: batch.id,
         files: uploadedFiles,
-        groups: batchMetadata.groups,
-        message: `${uploadedFiles.length} file(s) uploaded and queued for AI processing`,
+        groups,
+        skippedDuplicates,
+        message: `${uploadedFiles.length} file(s) uploaded and queued for AI processing${duplicateMessage}`,
       },
       { status: 201 }
     );
@@ -89,50 +111,66 @@ export async function POST(request: Request) {
   }
 }
 
-// Group files by their batch/group ID
-function groupFilesByBatch(files: any[]): Record<string, any[]> {
-  const groups: Record<string, any[]> = {};
-  for (const file of files) {
-    const groupId = file.groupId || file.batchId;
-    if (!groups[groupId]) {
-      groups[groupId] = [];
-    }
-    groups[groupId].push(file);
-  }
-  return groups;
-}
-
 // Handle regular (non-ZIP) file upload
 async function handleRegularFile(
   file: File, 
   uploadsDir: string, 
   timestamp: number,
   safeFilename: string,
-  batchId: string
-) {
+  batchId: string,
+): Promise<{ isDuplicate: boolean; existingFilename?: string; file?: any }> {
+  // Read file content
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  // Compute content hash for duplicate detection
+  const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
+  
+  // Check for duplicate
+  const existingFile = await findFileByHash(contentHash);
+  if (existingFile) {
+    return {
+      isDuplicate: true,
+      existingFilename: existingFile.originalFilename,
+    };
+  }
+
   const uniqueFilename = `${timestamp}-${safeFilename}`;
   const filePath = path.join(uploadsDir, uniqueFilename);
 
   // Save file to disk
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
   fs.writeFileSync(filePath, buffer);
 
   // Determine category based on filename/extension
   const category = guessCategory(file.name);
 
-  return {
-    id: uniqueFilename,
+  // Create database record
+  const dbFile = await createUploadedFile({
     originalFilename: file.name,
     storagePath: filePath,
-    mimeType: file.type || null,
+    mimeType: file.type || getMimeType(file.name),
     fileSize: file.size,
+    contentHash,
     aiStatus: "pending",
     aiCategory: category,
-    extractedFromZip: false,
     batchId: batchId,
-    groupId: batchId, // Regular files share the main batch ID
-    uploadedAt: new Date().toISOString(),
+    extractedFromZip: false,
+  });
+
+  return {
+    isDuplicate: false,
+    file: {
+      id: dbFile.id,
+      originalFilename: dbFile.originalFilename,
+      storagePath: dbFile.storagePath,
+      mimeType: dbFile.mimeType,
+      fileSize: dbFile.fileSize,
+      aiStatus: dbFile.aiStatus,
+      aiCategory: dbFile.aiCategory,
+      batchId: dbFile.batchId,
+      groupId: dbFile.groupId,
+      uploadedAt: dbFile.uploadedAt.toISOString(),
+    },
   };
 }
 
@@ -141,24 +179,16 @@ async function handleZipFile(
   file: File, 
   uploadsDir: string, 
   timestamp: number,
-  zipBatchId: string
-): Promise<Array<{
-  id: string;
-  originalFilename: string;
-  storagePath: string;
-  mimeType: string | null;
-  fileSize: number;
-  aiStatus: string;
-  aiCategory: string;
-  extractedFromZip: boolean;
-  zipSourceName: string;
-  batchId: string;
-  groupId: string;
-  uploadedAt: string;
-}>> {
+  batchId: string,
+  groupId: string,
+): Promise<{
+  files: Array<any>;
+  duplicates: Array<{ filename: string; existingFile: string }>;
+}> {
   const extractedFiles = [];
+  const duplicates: Array<{ filename: string; existingFile: string }> = [];
 
-  // Save ZIP to temp location first
+  // Read ZIP content
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
   
@@ -166,6 +196,53 @@ async function handleZipFile(
     const zip = new AdmZip(buffer);
     const zipEntries = zip.getEntries();
 
+    // Collect DICOM files for metadata extraction
+    const dicomFiles: Array<{ name: string; buffer: Buffer }> = [];
+    let dicomMetadata: DicomPackageMetadata | null = null;
+
+    // First pass: collect DICOM files for metadata extraction
+    for (const entry of zipEntries) {
+      if (entry.isDirectory) continue;
+      const originalName = path.basename(entry.entryName);
+      const lowerName = originalName.toLowerCase();
+      
+      // Check for DICOMDIR or DICOM files
+      if (lowerName === "dicomdir" || lowerName.endsWith(".dcm") || lowerName.includes("dicom")) {
+        dicomFiles.push({
+          name: originalName,
+          buffer: entry.getData(),
+        });
+      }
+    }
+
+    // Extract DICOM metadata if we have DICOM files
+    if (dicomFiles.length > 0) {
+      try {
+        dicomMetadata = extractDicomPackageMetadata(dicomFiles);
+        console.log("Extracted DICOM metadata:", dicomMetadata);
+        
+        // Save DICOM metadata to database
+        await saveDicomMetadata({
+          groupId,
+          patientName: dicomMetadata.patientName,
+          patientId: dicomMetadata.patientId,
+          studyDate: dicomMetadata.studyDate,
+          studyDescription: dicomMetadata.studyDescription,
+          seriesDescriptions: dicomMetadata.seriesDescriptions,
+          referringPhysician: dicomMetadata.referringPhysician,
+          institution: dicomMetadata.institution,
+          modalities: dicomMetadata.modalities,
+          bodyParts: dicomMetadata.bodyParts,
+          imageCount: dicomMetadata.imageCount,
+          seriesCount: dicomMetadata.seriesCount,
+          summary: dicomMetadata.summary,
+        });
+      } catch (err) {
+        console.error("Error extracting DICOM metadata:", err);
+      }
+    }
+
+    // Second pass: extract and save files
     for (const entry of zipEntries) {
       // Skip directories and hidden files
       if (entry.isDirectory) continue;
@@ -176,6 +253,20 @@ async function handleZipFile(
       // Get the file content
       const fileBuffer = entry.getData();
       const originalName = path.basename(entry.entryName);
+
+      // Compute content hash for duplicate detection
+      const contentHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+      
+      // Check for duplicate
+      const existingFile = await findFileByHash(contentHash);
+      if (existingFile) {
+        duplicates.push({
+          filename: originalName,
+          existingFile: existingFile.originalFilename,
+        });
+        continue; // Skip this file
+      }
+
       const safeFilename = originalName.replace(/[^a-zA-Z0-9.-]/g, "_");
       const uniqueFilename = `${timestamp}-zip-${safeFilename}`;
       const filePath = path.join(uploadsDir, uniqueFilename);
@@ -184,128 +275,105 @@ async function handleZipFile(
       fs.writeFileSync(filePath, fileBuffer);
 
       // Determine category and mime type
-      const category = guessCategory(originalName);
+      let category: FileCategory = guessCategory(originalName);
       const mimeType = getMimeType(originalName);
+      
+      // If we have DICOM metadata and this is an imaging file, use that info
+      if (dicomMetadata && (originalName.toLowerCase().endsWith(".dcm") || originalName.toLowerCase() === "dicomdir")) {
+        category = "imaging";
+      }
 
-      extractedFiles.push({
-        id: uniqueFilename,
+      // Create database record
+      const dbFile = await createUploadedFile({
         originalFilename: originalName,
         storagePath: filePath,
         mimeType: mimeType,
         fileSize: fileBuffer.length,
+        contentHash,
         aiStatus: "pending",
         aiCategory: category,
+        batchId: batchId,
+        groupId: groupId,
         extractedFromZip: true,
         zipSourceName: file.name,
-        batchId: zipBatchId.split("-zip-")[0], // Parent batch ID
-        groupId: zipBatchId, // Files from same ZIP share this group ID
-        uploadedAt: new Date().toISOString(),
+      });
+
+      extractedFiles.push({
+        id: dbFile.id,
+        originalFilename: dbFile.originalFilename,
+        storagePath: dbFile.storagePath,
+        mimeType: dbFile.mimeType,
+        fileSize: dbFile.fileSize,
+        aiStatus: dbFile.aiStatus,
+        aiCategory: dbFile.aiCategory,
+        extractedFromZip: true,
+        zipSourceName: file.name,
+        batchId: dbFile.batchId,
+        groupId: dbFile.groupId,
+        uploadedAt: dbFile.uploadedAt.toISOString(),
+        // Include DICOM metadata summary if available
+        ...(dicomMetadata && {
+          dicomMetadata: {
+            studyDate: dicomMetadata.studyDate,
+            referringPhysician: dicomMetadata.referringPhysician,
+            institution: dicomMetadata.institution,
+            modalities: dicomMetadata.modalities,
+            bodyParts: dicomMetadata.bodyParts,
+            summary: dicomMetadata.summary,
+          },
+        }),
       });
     }
   } catch (err) {
     console.error("Error extracting ZIP:", err);
-    // If ZIP extraction fails, save the ZIP file itself
-    const safeFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const uniqueFilename = `${timestamp}-${safeFilename}`;
-    const filePath = path.join(uploadsDir, uniqueFilename);
-    fs.writeFileSync(filePath, buffer);
     
-    extractedFiles.push({
-      id: uniqueFilename,
-      originalFilename: file.name,
-      storagePath: filePath,
-      mimeType: "application/zip",
-      fileSize: file.size,
-      aiStatus: "pending",
-      aiCategory: "other",
-      extractedFromZip: false,
-      zipSourceName: file.name,
-      batchId: zipBatchId.split("-zip-")[0],
-      groupId: zipBatchId,
-      uploadedAt: new Date().toISOString(),
-    });
+    // If ZIP extraction fails, save the ZIP file itself
+    const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
+    const existingFile = await findFileByHash(contentHash);
+    
+    if (!existingFile) {
+      const safeFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const uniqueFilename = `${timestamp}-${safeFilename}`;
+      const filePath = path.join(uploadsDir, uniqueFilename);
+      fs.writeFileSync(filePath, buffer);
+      
+      const dbFile = await createUploadedFile({
+        originalFilename: file.name,
+        storagePath: filePath,
+        mimeType: "application/zip",
+        fileSize: file.size,
+        contentHash,
+        aiStatus: "pending",
+        aiCategory: "other",
+        batchId: batchId,
+        groupId: groupId,
+        extractedFromZip: false,
+        zipSourceName: file.name,
+      });
+
+      extractedFiles.push({
+        id: dbFile.id,
+        originalFilename: dbFile.originalFilename,
+        storagePath: dbFile.storagePath,
+        mimeType: dbFile.mimeType,
+        fileSize: dbFile.fileSize,
+        aiStatus: dbFile.aiStatus,
+        aiCategory: dbFile.aiCategory,
+        extractedFromZip: false,
+        zipSourceName: file.name,
+        batchId: dbFile.batchId,
+        groupId: dbFile.groupId,
+        uploadedAt: dbFile.uploadedAt.toISOString(),
+      });
+    } else {
+      duplicates.push({
+        filename: file.name,
+        existingFile: existingFile.originalFilename,
+      });
+    }
   }
 
-  return extractedFiles;
-}
-
-// Guess file category based on filename and extension
-function guessCategory(filename: string): string {
-  const lower = filename.toLowerCase();
-  const ext = path.extname(lower);
-  
-  // Imaging
-  if (lower.includes("mri") || lower.includes("xray") || lower.includes("x-ray") || 
-      lower.includes("ct") || lower.includes("scan") || lower.includes("dicom") ||
-      ext === ".dcm") {
-    return "imaging";
-  }
-  
-  // Physical Therapy
-  if (lower.includes("pt") || lower.includes("therapy") || lower.includes("physical") ||
-      lower.includes("exercise") || lower.includes("rehab")) {
-    return "physical_therapy";
-  }
-  
-  // Medication
-  if (lower.includes("rx") || lower.includes("prescription") || lower.includes("medication") ||
-      lower.includes("med") || lower.includes("pharmacy")) {
-    return "medication";
-  }
-  
-  // Lab Results
-  if (lower.includes("lab") || lower.includes("blood") || lower.includes("test") ||
-      lower.includes("result")) {
-    return "lab_results";
-  }
-  
-  // Billing
-  if (lower.includes("bill") || lower.includes("invoice") || lower.includes("statement") ||
-      lower.includes("insurance") || lower.includes("claim") || lower.includes("eob")) {
-    return "billing";
-  }
-  
-  // Visit Notes / Medical Records
-  if (lower.includes("visit") || lower.includes("notes") || lower.includes("doctor") ||
-      lower.includes("chart") || lower.includes("record") || lower.includes("consult") ||
-      lower.includes("ucsd") || lower.includes("hospital")) {
-    return "visit_notes";
-  }
-  
-  // Images (likely imaging if medical context)
-  if ([".png", ".jpg", ".jpeg", ".gif", ".tiff", ".tif", ".bmp"].includes(ext)) {
-    return "imaging";
-  }
-  
-  // PDFs are often visit notes or reports
-  if (ext === ".pdf") {
-    return "visit_notes";
-  }
-  
-  return "other";
-}
-
-// Get MIME type from filename
-function getMimeType(filename: string): string {
-  const ext = path.extname(filename).toLowerCase();
-  const mimeTypes: Record<string, string> = {
-    ".pdf": "application/pdf",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif": "image/gif",
-    ".tiff": "image/tiff",
-    ".tif": "image/tiff",
-    ".bmp": "image/bmp",
-    ".doc": "application/msword",
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".txt": "text/plain",
-    ".xml": "application/xml",
-    ".json": "application/json",
-    ".dcm": "application/dicom",
-    ".zip": "application/zip",
-  };
-  return mimeTypes[ext] || "application/octet-stream";
+  return { files: extractedFiles, duplicates };
 }
 
 // =============================================================================
@@ -314,63 +382,47 @@ function getMimeType(filename: string): string {
 // =============================================================================
 export async function GET() {
   try {
-    const uploadsDir = path.join(process.cwd(), "uploads", "pending");
-    const batchesDir = path.join(process.cwd(), "uploads", "batches");
-    
-    // Create directories if they don't exist
-    if (!fs.existsSync(uploadsDir)) {
-      return NextResponse.json({ files: [], batches: [] }, { status: 200 });
-    }
+    // Get all files from database
+    const files = await getUploadedFiles();
+    const batches = await getBatches();
 
-    // Read all batch files
-    const batches: any[] = [];
-    if (fs.existsSync(batchesDir)) {
-      const batchFiles = fs.readdirSync(batchesDir);
-      for (const batchFile of batchFiles) {
-        try {
-          const content = fs.readFileSync(path.join(batchesDir, batchFile), "utf-8");
-          batches.push(JSON.parse(content));
-        } catch (e) {
-          // Skip invalid batch files
-        }
-      }
-    }
+    // Transform files for API response
+    const fileList = files.map((file: typeof files[number]) => ({
+      id: file.id,
+      originalFilename: file.originalFilename,
+      storagePath: file.storagePath,
+      mimeType: file.mimeType,
+      fileSize: file.fileSize,
+      aiStatus: file.aiStatus,
+      aiCategory: file.aiCategory,
+      batchId: file.batchId,
+      groupId: file.groupId,
+      extractedFromZip: file.extractedFromZip,
+      zipSourceName: file.zipSourceName,
+      uploadedAt: file.uploadedAt.toISOString(),
+      // Include analysis results if available
+      ...(file.summary && {
+        summary: file.summary,
+        suggestedTitle: file.suggestedTitle,
+        extractedDate: file.extractedDate,
+        extractedProvider: file.extractedProvider,
+        extractedBodyRegion: file.extractedBodyRegion,
+      }),
+    }));
 
-    // Read all files in the pending directory
-    const filenames = fs.readdirSync(uploadsDir);
-    
-    const files = filenames.map((filename) => {
-      const filePath = path.join(uploadsDir, filename);
-      const stats = fs.statSync(filePath);
-      
-      // Extract original filename from the unique filename (after timestamp-)
-      let originalFilename = filename.replace(/^\d+-/, "");
-      // Handle zip-extracted files
-      originalFilename = originalFilename.replace(/^zip-/, "");
-      originalFilename = originalFilename.replace(/_/g, " ");
-      
-      const category = guessCategory(originalFilename);
-      
-      // Try to find batch info for this file
-      const batch = batches.find(b => b.files?.includes(filename));
-      
-      return {
-        id: filename,
-        originalFilename,
-        storagePath: filePath,
-        mimeType: getMimeType(filename),
-        fileSize: stats.size,
-        aiStatus: "pending",
-        aiCategory: category,
-        batchId: batch?.batchId || null,
-        uploadedAt: stats.birthtime.toISOString(),
-      };
-    });
+    // Transform batches for API response
+    const batchList = batches.map((batch: typeof batches[number]) => ({
+      batchId: batch.id,
+      createdAt: batch.createdAt.toISOString(),
+      fileCount: batch.files.length,
+      files: batch.files.map((f: typeof batch.files[number]) => f.id),
+      groups: batch.groups.reduce((acc: Record<string, string[]>, g: typeof batch.groups[number]) => {
+        acc[g.id] = g.files.map((f: typeof g.files[number]) => f.id);
+        return acc;
+      }, {} as Record<string, string[]>),
+    }));
 
-    // Sort batches by creation date (newest first)
-    batches.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    return NextResponse.json({ files, batches }, { status: 200 });
+    return NextResponse.json({ files: fileList, batches: batchList }, { status: 200 });
   } catch (error) {
     console.error("Error fetching uploads:", error);
     return NextResponse.json(

@@ -1,0 +1,38 @@
+[
+  {
+    "txid": "f99da0367a9ee792ec5fb8136e5476d4eb3afd50ac26e0f3b89d957b11e28722",
+    "type": "RECEIVE",
+    "inscription_id": "57b29b30cacefe5a4c045869c24fe46d72583cc2ff4bee62c8d3182fd460db9ai0",
+    "counterpart_address": "bc1pc78m3h8rjttl5fzrc380ngfnwhxt2xdc0d5uqlklts7fq3leelfq0f2ufq",
+    "spent_as_fee": false,
+    "timestamp": "2025-01-30T22:50:06.000Z",
+    "confirmed": true
+  },
+  {
+    "txid": "2cfc3e8cec96fdac871aa77b776db76e4f106d79bf5c69f214769aa107441a79",
+    "type": "RECEIVE",
+    "inscription_id": "bb50d1536c6932e79b043798840ed6a098e2f5f3913a8c43f8391a97b74b7263i0",
+    "counterpart_address": "bc1qrf0trkvamaeasrf5kuu8xguflqdjsvcgy7yr2e",
+    "spent_as_fee": false,
+    "timestamp": "2025-01-04T10:14:16.000Z",
+    "confirmed": true
+  },
+  {
+    "txid": "4717806383f7852a8c96fa1e50b7fc9224fbc7d8f8c47125a144433125e88863",
+    "type": "RECEIVE",
+    "inscription_id": "b276116d23ab87606dce74afa1863527ab246b279cdcaf9363d92db172f1767ai0",
+    "counterpart_address": "bc1pzjn4s59s4x9xs6cpl9yfpv8786emr22p7zzau2ev369d0vvkt6vsn8u7u4",
+    "spent_as_fee": false,
+    "timestamp": "2023-06-18T20:39:17.000Z",
+    "confirmed": true
+  },
+  {
+    "txid": "5da18a7f5440b6c137a6e9b79b968aed72703784da86db727a7ef377a25da5ef",
+    "type": "RECEIVE",
+    "inscription_id": "ec49cd4bdcb8189dae72f9f8677710bbefbea150b3d35263ed8c35348f1dc51ci0",
+    "counterpart_address": "bc1pazxnc6yt2n7umlaq6ccgcxsahz7gqt5s897qjjkf0elmuz4986nszxla63",
+    "spent_as_fee": false,
+    "timestamp": "2023-03-23T20:44:55.000Z",
+    "confirmed": true
+  }
+]

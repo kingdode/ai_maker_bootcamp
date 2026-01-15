@@ -1,0 +1,21 @@
+TAX SUMMARY REPORT - GAINS & LOSSES
+================================================================================
+
+Address: bc1p3qrp9t95dw9crw94kvh36vcafz46mrln99yrvh4fygw6w7vv4dwsu8teyl
+Period: 2024-03-12 to 2025-12-09
+Total Transactions: 22
+
+BTC SUMMARY
+--------------------------------------------------------------------------------
+Total BTC Received (Purchases): 0.12845500 BTC
+Total BTC Sent (Sales): 0.01409965 BTC
+Total Fees Paid: 0.00000241 BTC
+Net BTC Balance: 0.11435535 BTC
+
+TAX CALCULATIONS (FIFO Cost Basis)
+--------------------------------------------------------------------------------
+Total Gains: 0.00000000 BTC
+Total Losses: 0.11435535 BTC
+Net Gain/Loss: -0.11435535 BTC
+Remaining Cost Basis (Unrealized): 0.00000000 BTC
+Remaining Holdings: 0 inscriptions

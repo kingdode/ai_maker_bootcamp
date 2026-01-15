@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  /* Dark premium theme with purple and green tones */
   --background: #0d0d12;
   --background-secondary: #13131a;
   --background-card: #1a1a24;
@@ -36,6 +37,7 @@ body {
   min-height: 100vh;
 }
 
+/* Scrollbar styling for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
 }

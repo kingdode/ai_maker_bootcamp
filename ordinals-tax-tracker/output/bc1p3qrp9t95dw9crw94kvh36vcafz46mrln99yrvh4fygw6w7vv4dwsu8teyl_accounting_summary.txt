@@ -1,0 +1,32 @@
+ACCOUNTING SUMMARY REPORT
+================================================================================
+
+Account: Bitcoin Address
+Address: bc1p3qrp9t95dw9crw94kvh36vcafz46mrln99yrvh4fygw6w7vv4dwsu8teyl
+Report Period: 2024-03-12 to 2025-12-09
+Report Generated: 2025-12-17 21:55:38 UTC
+
+ACCOUNT SUMMARY
+--------------------------------------------------------------------------------
+Opening Balance: 0
+Total Debits (Received): 12
+Total Credits (Sent): 10
+Closing Balance: 2
+
+TRANSACTION BREAKDOWN
+--------------------------------------------------------------------------------
+Total Transactions: 22
+  Receives: 12
+  Sends: 10
+  Confirmed: 22
+  Pending: 0
+
+MONTHLY ACTIVITY
+--------------------------------------------------------------------------------
+2024-03: 2 received, 0 sent
+2024-04: 4 received, 5 sent
+2024-07: 3 received, 2 sent
+2024-11: 2 received, 0 sent
+2025-01: 1 received, 0 sent
+2025-08: 0 received, 1 sent
+2025-12: 0 received, 2 sent

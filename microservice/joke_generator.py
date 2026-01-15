@@ -4,10 +4,11 @@ Joke Generator FastAPI Application - Returns a random joke from a collection of 
 """
 
 import random
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from typing import Optional
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -19,24 +20,44 @@ app = FastAPI(
 # Mount static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# List of 10 jokes
+# Authentication Configuration
+AUTH_KEY = "12345"
+
+
+async def verify_auth_header(request: Request):
+    """Verify the authentication key from X-Auth-Key header."""
+    auth_key = request.headers.get("X-Auth-Key") or request.headers.get("x-auth-key")
+    if auth_key is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing authentication key. Please provide X-Auth-Key header."
+        )
+    if auth_key != AUTH_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication key."
+        )
+    return auth_key
+
+# List of 10 jokes with setup and punchline
 JOKES = [
-    "Why don't scientists trust atoms? Because they make up everything!",
-    "Why did the scarecrow win an award? He was outstanding in his field!",
-    "Why don't eggs tell jokes? They'd crack each other up!",
-    "What do you call a fake noodle? An impasta!",
-    "Why did the math book look so sad? Because it had too many problems!",
-    "What do you call a bear with no teeth? A gummy bear!",
-    "Why don't programmers like nature? It has too many bugs!",
-    "What's the best thing about Switzerland? I don't know, but the flag is a big plus!",
-    "Why did the coffee file a police report? It got mugged!",
-    "What do you call a sleeping bull? A bulldozer!"
+    {"setup": "Why don't scientists trust atoms?", "punchline": "Because they make up everything!"},
+    {"setup": "Why did the scarecrow win an award?", "punchline": "He was outstanding in his field!"},
+    {"setup": "Why don't eggs tell jokes?", "punchline": "They'd crack each other up!"},
+    {"setup": "What do you call a fake noodle?", "punchline": "An impasta!"},
+    {"setup": "Why did the math book look so sad?", "punchline": "Because it had too many problems!"},
+    {"setup": "What do you call a bear with no teeth?", "punchline": "A gummy bear!"},
+    {"setup": "Why don't programmers like nature?", "punchline": "It has too many bugs!"},
+    {"setup": "What's the best thing about Switzerland?", "punchline": "I don't know, but the flag is a big plus!"},
+    {"setup": "Why did the coffee file a police report?", "punchline": "It got mugged!"},
+    {"setup": "What do you call a sleeping bull?", "punchline": "A bulldozer!"}
 ]
 
 
 class JokeResponse(BaseModel):
     """Response model for joke endpoint."""
-    joke: str
+    setup: str
+    punchline: str
 
 
 def get_random_joke():
@@ -68,18 +89,23 @@ async def api_info():
     return {
         "message": "Welcome to the Joke Generator API!",
         "endpoints": {
-            "/joke": "GET - Returns a random joke",
+            "/joke": "GET - Returns a random joke (requires X-Auth-Key header)",
             "/docs": "Interactive API documentation",
             "/health": "Health check endpoint"
+        },
+        "authentication": {
+            "type": "API Key",
+            "header": "X-Auth-Key",
+            "note": "The /joke endpoint requires authentication"
         }
     }
 
 
 @app.get("/joke", response_model=JokeResponse, tags=["Jokes"])
-async def get_joke():
-    """Returns a random joke."""
+async def get_joke(auth_key: str = Depends(verify_auth_header)):
+    """Returns a random joke with setup and punchline. Requires X-Auth-Key header."""
     joke = get_random_joke()
-    return JokeResponse(joke=joke)
+    return JokeResponse(setup=joke["setup"], punchline=joke["punchline"])
 
 
 @app.get("/health", tags=["Health"])

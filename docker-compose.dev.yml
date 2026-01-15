@@ -1,0 +1,37 @@
+# DealStackr Docker Compose - Development Configuration
+# Run: docker-compose -f docker-compose.dev.yml up
+
+version: '3.8'
+
+services:
+  # DealStackr Web Application (Development)
+  dealstackr-web-dev:
+    build:
+      context: ./dealstackr-web
+      dockerfile: Dockerfile.dev
+    container_name: dealstackr-web-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot reloading
+      - ./dealstackr-web/src:/app/src
+      - ./dealstackr-web/public:/app/public
+      # Persist data
+      - dealstackr-data-dev:/app/.data
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - WATCHPACK_POLLING=true  # Enable polling for Docker on Mac/Windows
+    networks:
+      - dealstackr-network-dev
+
+volumes:
+  dealstackr-data-dev:
+    driver: local
+
+networks:
+  dealstackr-network-dev:
+    driver: bridge

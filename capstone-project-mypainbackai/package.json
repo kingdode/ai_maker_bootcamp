@@ -11,8 +11,8 @@
   "dependencies": {
     "@libsql/client": "^0.15.15",
     "@prisma/adapter-libsql": "^7.2.0",
-    "@prisma/client": "^7.2.0",
     "adm-zip": "^0.5.16",
+    "dicom-parser": "^1.8.21",
     "dotenv": "^17.2.3",
     "formidable": "^3.5.4",
     "next": "16.1.1",
@@ -22,6 +22,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@prisma/client": "^7.2.0",
     "@tailwindcss/postcss": "^4",
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^20",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "prisma": "^7.2.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

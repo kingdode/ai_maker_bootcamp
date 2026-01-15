@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Ordinals Tax Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Bitcoin Ordinals Tax Tracker</h1>
+            <p class="subtitle">Track your Ordinals, Runes, and BRC-20 tokens for tax purposes</p>
+        </header>
+
+        <!-- Dashboard Summary -->
+        <section class="dashboard">
+            <h2>Dashboard</h2>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3>BTC Price (USD)</h3>
+                    <div class="price-input-container">
+                        <input type="number" id="btcPriceToday" placeholder="Enter BTC price" step="0.01" min="0">
+                        <button onclick="updateBTCPrice()">Update</button>
+                    </div>
+                    <p class="current-price" id="currentBTCPrice">Not set</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>ETH Price (USD)</h3>
+                    <div class="price-input-container">
+                        <input type="number" id="ethPriceToday" placeholder="Enter ETH price" step="0.01" min="0">
+                        <button onclick="updateETHPrice()">Update</button>
+                    </div>
+                    <p class="current-price" id="currentETHPrice">Not set</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Total Cost Basis</h3>
+                    <p class="value" id="totalCostBasis">$0.00</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Total Proceeds</h3>
+                    <p class="value" id="totalProceeds">$0.00</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Current Portfolio Value</h3>
+                    <p class="value" id="portfolioValue">$0.00</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Realized P/L</h3>
+                    <p class="value" id="realizedPL">$0.00</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Unrealized P/L</h3>
+                    <p class="value" id="unrealizedPL">$0.00</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Net Gain/Loss (Year)</h3>
+                    <p class="value" id="netGainLoss">$0.00</p>
+                    <small style="color: var(--text-secondary); font-size: 0.85em; display: block; margin-top: 5px;">Total Proceeds - Total Cost Basis</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Asset Section -->
+        <section class="add-asset-section">
+            <h2>Add Asset</h2>
+            
+            <!-- Simple Add Asset Form -->
+            <div class="form-container">
+                <h3 id="addAssetFormTitle">Add Asset Purchase</h3>
+                <form id="addAssetForm" onsubmit="handleAddAsset(event)">
+                    <div class="form-group">
+                        <label for="assetType">Type of Asset *</label>
+                        <select id="assetType" required>
+                            <option value="">Select asset type</option>
+                            <option value="Ordinal">Ordinal</option>
+                            <option value="Rune">Rune</option>
+                            <option value="BRC-20">BRC-20</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="assetDescription">Description *</label>
+                        <input type="text" id="assetDescription" required placeholder="e.g., WZRD, Bitcoin Puppet NFT, etc.">
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;">For Runes and BRC-20, you can add multiple purchases of the same asset</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="assetCurrency">Currency *</label>
+                        <select id="assetCurrency" required onchange="updateCurrencyLabels('purchase')">
+                            <option value="BTC">Bitcoin (BTC)</option>
+                            <option value="ETH">Ethereum (ETH)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="assetDate">Date *</label>
+                        <input type="date" id="assetDate" required onchange="autoFillCryptoPrice()">
+                    </div>
+                    <div class="form-group">
+                        <label for="assetCryptoAmount">Amount *</label>
+                        <input type="number" id="assetCryptoAmount" required step="0.00000001" min="0" placeholder="0.00000000" oninput="calculateAssetUSD()" onblur="calculateAssetUSD()">
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;">USD value will calculate automatically using the historical price for the selected date</small>
+                    </div>
+                    <div class="form-group" id="assetPriceDenominationGroup">
+                        <label for="assetPriceDenomination">Price Denomination *</label>
+                        <select id="assetPriceDenomination" required onchange="updateCurrencyLabels('purchase')">
+                            <option value="USD">USD</option>
+                            <option value="ETH" id="assetPriceDenomETH" style="display: none;">ETH</option>
+                            <option value="BTC" id="assetPriceDenomBTC" style="display: none;">BTC</option>
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;" id="assetPriceDenomNote">Choose whether price is in USD or another currency</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="assetCryptoPrice" id="assetCryptoPriceLabel">BTC/USD Price (on purchase date) *</label>
+                        <input type="number" id="assetCryptoPrice" required step="0.01" min="0" placeholder="e.g., 45000.00" oninput="calculateAssetUSD()">
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;" id="assetPriceNote">Price will automatically fetch from the internet based on the date you select</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Calculated USD Value</label>
+                        <div class="calculated-value" id="calculatedAssetUSDValue">$0.00</div>
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;" id="assetCalculationNote">Automatically calculated: Amount × Price</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="addAssetSubmitBtn">Add Asset</button>
+                        <button type="button" onclick="cancelAssetEdit()" id="addAssetCancelBtn" style="display: none;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Record Sale Section -->
+        <section class="record-sale-section">
+            <h2>Record Sale</h2>
+            
+            <div class="form-container">
+                <h3 id="recordSaleFormTitle">Record Asset Sale</h3>
+                <form id="recordSaleForm" onsubmit="handleRecordSale(event)">
+                    <div class="form-group">
+                        <label for="saleAssetSelect">Select Purchased Asset *</label>
+                        <select id="saleAssetSelect" onchange="populateSaleAssetFields()">
+                            <option value="">-- Select an asset to sell --</option>
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;">Select an asset you've previously purchased, or enter manually below</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="saleAssetType">Type of Asset *</label>
+                        <select id="saleAssetType" required>
+                            <option value="">Select asset type</option>
+                            <option value="Ordinal">Ordinal</option>
+                            <option value="Rune">Rune</option>
+                            <option value="BRC-20">BRC-20</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="saleAssetDescription">Description *</label>
+                        <input type="text" id="saleAssetDescription" required placeholder="e.g., WZRD, Bitcoin Puppet NFT, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label for="saleCurrency">Currency *</label>
+                        <select id="saleCurrency" required onchange="updateCurrencyLabels('sale')">
+                            <option value="BTC">Bitcoin (BTC)</option>
+                            <option value="ETH">Ethereum (ETH)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="saleDate">Sale Date *</label>
+                        <input type="date" id="saleDate" required onchange="autoFillSaleCryptoPrice()">
+                    </div>
+                    <div class="form-group">
+                        <label for="saleCryptoAmount">Amount Received *</label>
+                        <input type="number" id="saleCryptoAmount" required step="0.00000001" min="0" placeholder="0.00000000" oninput="calculateSaleUSD()" onblur="calculateSaleUSD()">
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;">USD value will calculate automatically using the historical price for the selected date</small>
+                    </div>
+                    <div class="form-group" id="salePriceDenominationGroup">
+                        <label for="salePriceDenomination">Price Denomination *</label>
+                        <select id="salePriceDenomination" required onchange="updateCurrencyLabels('sale')">
+                            <option value="USD">USD</option>
+                            <option value="ETH" id="salePriceDenomETH" style="display: none;">ETH</option>
+                            <option value="BTC" id="salePriceDenomBTC" style="display: none;">BTC</option>
+                        </select>
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;" id="salePriceDenomNote">Choose whether price is in USD or another currency</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="saleCryptoPrice" id="saleCryptoPriceLabel">BTC/USD Price (on sale date) *</label>
+                        <input type="number" id="saleCryptoPrice" required step="0.01" min="0" placeholder="e.g., 45000.00" oninput="calculateSaleUSD()">
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;" id="salePriceNote">Price will automatically fetch from the internet based on the date you select</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Calculated USD Proceeds</label>
+                        <div class="calculated-value" id="calculatedSaleUSDValue">$0.00</div>
+                        <small style="color: var(--text-secondary); font-size: 0.85em; margin-top: 5px; display: block;" id="saleCalculationNote">Automatically calculated: Amount × Price</small>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" id="recordSaleSubmitBtn">Record Sale</button>
+                        <button type="button" onclick="cancelSaleEdit()" id="recordSaleCancelBtn" style="display: none;">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Transaction Management -->
+        <section class="transaction-section">
+            <h2>Transactions</h2>
+
+            <!-- Transactions Table -->
+            <div class="table-container">
+                <table id="transactionsTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Currency</th>
+                            <th>Asset Type</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Price (USD)</th>
+                            <th>USD Value</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTableBody">
+                        <!-- Transactions will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Export Section -->
+        <section class="export-section">
+            <h2>Export Data</h2>
+            <div class="export-container">
+                <button onclick="exportToCSV()" class="export-btn">Export All Data to CSV</button>
+                <p class="export-note">Export includes all assets and transactions for CPA or CoinLedger import</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

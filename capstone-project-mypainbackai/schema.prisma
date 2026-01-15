@@ -1,44 +1,246 @@
+// =============================================================================
+// MyPainBackAI - Prisma Schema
+// Comprehensive data model for medical file management and AI analysis
+// =============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"  // Changed to sqlite for local testing as per .env
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
-model Study {
-  id          String       @id @default(cuid())
-  modality    String
-  studyDate   DateTime?
-  bodyRegion  String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+// =============================================================================
+// Core File Management
+// =============================================================================
 
-  files       StudyFile[]
-  reviews     StudyReview[]
+/// Represents an uploaded file with AI processing status and metadata
+model UploadedFile {
+  id                String    @id @default(cuid())
+  originalFilename  String
+  storagePath       String
+  mimeType          String?
+  fileSize          Int?
+  contentHash       String?   // SHA-256 hash for duplicate detection
+
+  // AI Processing Status
+  aiStatus          String    @default("pending") // pending, processing, review, confirmed, failed
+  aiCategory        String?   // imaging, visit_notes, physical_therapy, medication, lab_results, billing, other
+  aiConfidence      Float?
+
+  // AI Extracted Metadata
+  extractedDate     String?   // ISO date string
+  extractedProvider String?
+  extractedBodyRegion String?
+  extractedText     String?   // First portion of extracted text
+
+  // AI Analysis Results
+  summary           String?
+  suggestedTitle    String?
+  keywords          String?   // JSON array stored as string
+
+  // Grouping (for files uploaded together or from same ZIP)
+  batchId           String?
+  groupId           String?
+  extractedFromZip  Boolean   @default(false)
+  zipSourceName     String?
+
+  // Timestamps
+  uploadedAt        DateTime  @default(now())
+  analyzedAt        DateTime?
+  confirmedAt       DateTime?
+
+  // Relations
+  batch             Batch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  group             FileGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  dicomMetadata     DicomMetadata?
+
+  @@unique([contentHash])
+  @@index([batchId])
+  @@index([groupId])
+  @@index([aiStatus])
+  @@index([aiCategory])
+  @@index([extractedDate])
 }
 
-model StudyFile {
-  id               String         @id @default(cuid())
-  study            Study          @relation(fields: [studyId], references: [id])
-  studyId          String
-  fileType         String
-  originalFilename String
-  storagePath      String
-  uploadedAt       DateTime       @default(now())
-  reviews          StudyReview[]
+/// Represents a batch of files uploaded in a single session
+model Batch {
+  id        String      @id @default(cuid())
+  createdAt DateTime    @default(now())
+  
+  files     UploadedFile[]
+  groups    FileGroup[]
 }
 
-model StudyReview {
-  id           String     @id @default(cuid())
-  study        Study      @relation(fields: [studyId], references: [id])
-  studyId      String
-  authorType   String
-  authorName   String?
-  dateWritten  DateTime?
-  sourceType   String
-  contentText  String?
-  file         StudyFile? @relation(fields: [fileId], references: [id])
-  fileId       String?
-  createdAt    DateTime   @default(now())
+/// Represents a group of related files (e.g., from same ZIP or upload)
+model FileGroup {
+  id            String    @id @default(cuid())
+  name          String?
+  isZipGroup    Boolean   @default(false)
+  
+  // Batch relationship
+  batchId       String?
+  batch         Batch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  
+  // Files in this group
+  files         UploadedFile[]
+  
+  // Group-level analysis
+  groupAnalysis GroupAnalysis?
+  
+  // DICOM metadata for the group
+  dicomMetadata DicomMetadata?
+  
+  createdAt     DateTime  @default(now())
+
+  @@index([batchId])
+}
+
+// =============================================================================
+// AI Analysis Results
+// =============================================================================
+
+/// Stores AI analysis results for a group of files
+model GroupAnalysis {
+  id              String    @id @default(cuid())
+  
+  // Link to file group
+  groupId         String    @unique
+  group           FileGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // Analysis results
+  category        String?
+  date            String?   // ISO date
+  provider        String?
+  bodyRegion      String?
+  summary         String?
+  suggestedTitle  String?
+  confidence      Float?
+  
+  // Imaging-specific
+  hasImaging      Boolean   @default(false)
+  imagingSummary  String?
+  imagingFiles    String?   // JSON array of file IDs
+  
+  analyzedAt      DateTime  @default(now())
+}
+
+/// Stores DICOM-specific metadata extracted from medical imaging files
+model DicomMetadata {
+  id                  String     @id @default(cuid())
+  
+  // Can belong to a single file or a group
+  fileId              String?    @unique
+  file                UploadedFile? @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  
+  groupId             String?    @unique
+  group               FileGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // Patient info (de-identified for privacy)
+  patientName         String?
+  patientId           String?
+  
+  // Study info
+  studyDate           String?    // ISO date
+  studyDescription    String?
+  seriesDescriptions  String?    // JSON array
+  
+  // Provider info
+  referringPhysician  String?
+  institution         String?
+  
+  // Technical info
+  modalities          String?    // JSON array (CT, MR, XR, etc.)
+  bodyParts           String?    // JSON array
+  imageCount          Int        @default(0)
+  seriesCount         Int        @default(0)
+  
+  // Generated summary
+  summary             String?
+  
+  extractedAt         DateTime   @default(now())
+}
+
+// =============================================================================
+// Patient Information
+// =============================================================================
+
+/// Stores the patient's own description of their medical history
+model PatientSummary {
+  id              String    @id @default(cuid())
+  
+  // Patient's own words
+  summary         String?   // Overall summary
+  painHistory     String?   // History of pain
+  currentSymptoms String?   // Current symptoms
+  treatments      String?   // Treatments tried
+  goals           String?   // Treatment goals
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// =============================================================================
+// Generated Reports
+// =============================================================================
+
+/// Stores generated imaging study/progression reports
+model ImagingReport {
+  id                    String    @id @default(cuid())
+  
+  // Quick reference fields
+  quickSummary          String?
+  primaryDiagnosis      String?
+  keyPoints             String?   // JSON array
+  lastImagingDate       String?   // ISO date
+  
+  // Detailed data (stored as JSON)
+  imagingList           String?   // JSON array of imaging entries
+  patientTimeline       String?   // JSON array of timeline entries
+  bodyRegionProgression String?   // JSON object mapping regions to entries
+  
+  generatedAt           DateTime  @default(now())
+}
+
+/// Stores generated doctor-ready summaries
+model DoctorSummary {
+  id              String    @id @default(cuid())
+  
+  // Summary content
+  summary         String?
+  keyFindings     String?   // JSON array
+  recommendations String?   // JSON array
+  timeline        String?   // JSON array
+  
+  // Metadata
+  generatedAt     DateTime  @default(now())
+}
+
+// =============================================================================
+// Cumulative Analysis Tracking
+// =============================================================================
+
+/// Tracks overall patient analysis state
+model PatientAnalysis {
+  id                    String    @id @default(cuid())
+  
+  // Cumulative stats
+  totalFilesAnalyzed    Int       @default(0)
+  
+  // Aggregated data (JSON)
+  conditions            String?   // JSON array
+  providers             String?   // JSON array
+  bodyRegions           String?   // JSON array
+  medicationsFound      String?   // JSON array
+  treatmentsFound       String?   // JSON array
+  
+  // Date range
+  earliestDate          String?
+  latestDate            String?
+  
+  lastUpdated           DateTime  @updatedAt
+  createdAt             DateTime  @default(now())
 }

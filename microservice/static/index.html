@@ -159,6 +159,13 @@
             border-radius: 10px;
             margin: 20px 0;
         }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -168,16 +175,22 @@
         <p class="subtitle">Ready to laugh? Click the button below!</p>
         
         <div class="joke-container">
-            <div id="jokeDisplay" class="joke-text joke-placeholder">
+            <div id="jokeSetup" class="joke-text joke-placeholder">
                 Click "Get a Joke" to start laughing! 😊
             </div>
+            <div id="jokePunchline" class="joke-text" style="display: none; margin-top: 20px; color: #667eea; font-weight: 600;"></div>
         </div>
 
         <div id="errorMessage" class="error" style="display: none;"></div>
 
-        <button id="getJokeBtn" class="button" onclick="getJoke()">
-            Get a Joke! 🎭
-        </button>
+        <div class="button-container">
+            <button id="getJokeBtn" class="button" onclick="getJoke()">
+                Get a Joke! 🎭
+            </button>
+            <button id="tellMeBtn" class="button" onclick="revealPunchline()" style="display: none; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                Tell Me! 😂
+            </button>
+        </div>
 
         <div class="footer">
             <a href="/docs" target="_blank">API Documentation</a> |
@@ -187,40 +200,61 @@
 
     <script>
         const API_URL = '/joke';
-        const jokeDisplay = document.getElementById('jokeDisplay');
+        const AUTH_KEY = '12345';
+        const jokeSetup = document.getElementById('jokeSetup');
+        const jokePunchline = document.getElementById('jokePunchline');
         const getJokeBtn = document.getElementById('getJokeBtn');
+        const tellMeBtn = document.getElementById('tellMeBtn');
         const errorMessage = document.getElementById('errorMessage');
+        let currentPunchline = '';
 
         async function getJoke() {
             // Disable button and show loading
             getJokeBtn.disabled = true;
             getJokeBtn.innerHTML = '<span class="loading"></span>Loading...';
             errorMessage.style.display = 'none';
-            jokeDisplay.textContent = 'Loading your joke...';
-            jokeDisplay.classList.add('joke-placeholder');
+            jokeSetup.textContent = 'Loading your joke...';
+            jokeSetup.classList.add('joke-placeholder');
+            jokePunchline.style.display = 'none';
+            tellMeBtn.style.display = 'none';
+            currentPunchline = '';
 
             try {
-                const response = await fetch(API_URL);
+                const response = await fetch(API_URL, {
+                    headers: {
+                        'X-Auth-Key': AUTH_KEY
+                    }
+                });
                 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('Authentication failed. Invalid or missing authentication key.');
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const data = await response.json();
                 
-                // Animate joke display
-                jokeDisplay.classList.remove('joke-placeholder');
-                jokeDisplay.textContent = data.joke;
+                // Show setup
+                jokeSetup.classList.remove('joke-placeholder');
+                jokeSetup.textContent = data.setup;
+                currentPunchline = data.punchline;
                 
-                // Add a little animation
-                jokeDisplay.style.animation = 'fadeIn 0.5s ease-in';
+                // Show "Tell me" button
+                tellMeBtn.style.display = 'inline-block';
+                
+                // Add animation
+                jokeSetup.style.animation = 'fadeIn 0.5s ease-in';
                 
             } catch (error) {
                 console.error('Error fetching joke:', error);
-                errorMessage.textContent = `Oops! Couldn't fetch a joke. Error: ${error.message}`;
+                const errorMsg = error.message.includes('Authentication') 
+                    ? 'Authentication failed. Please check your authentication key.' 
+                    : `Oops! Couldn't fetch a joke. Error: ${error.message}`;
+                errorMessage.textContent = errorMsg;
                 errorMessage.style.display = 'block';
-                jokeDisplay.textContent = 'Failed to load joke. Please try again.';
-                jokeDisplay.classList.add('joke-placeholder');
+                jokeSetup.textContent = 'Failed to load joke. Please try again.';
+                jokeSetup.classList.add('joke-placeholder');
             } finally {
                 // Re-enable button
                 getJokeBtn.disabled = false;
@@ -228,10 +262,14 @@
             }
         }
 
-        // Load a joke automatically when page loads
-        window.addEventListener('DOMContentLoaded', () => {
-            getJoke();
-        });
+        function revealPunchline() {
+            if (currentPunchline) {
+                jokePunchline.textContent = currentPunchline;
+                jokePunchline.style.display = 'block';
+                jokePunchline.style.animation = 'fadeIn 0.5s ease-in';
+                tellMeBtn.style.display = 'none';
+            }
+        }
     </script>
 </body>
 </html>

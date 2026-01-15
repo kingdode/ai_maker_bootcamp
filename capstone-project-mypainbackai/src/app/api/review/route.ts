@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import * as fs from "fs";
-import * as path from "path";
+import {
+  getUploadedFiles,
+  guessCategory,
+  getMimeType,
+} from "@/lib/db";
 
 // =============================================================================
 // GET /api/review
@@ -8,67 +11,51 @@ import * as path from "path";
 // =============================================================================
 export async function GET() {
   try {
-    const pendingDir = path.join(process.cwd(), "uploads", "pending");
+    // Get all files from database
+    const files = await getUploadedFiles();
     
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(pendingDir)) {
-      return NextResponse.json(
-        {
-          files: [],
-          totalReview: 0,
-          totalPending: 0,
-          totalProcessing: 0,
-        },
-        { status: 200 }
-      );
-    }
+    // Filter to files needing review (pending or review status)
+    const reviewFiles = files.filter(
+      (f: typeof files[number]) => f.aiStatus === "pending" || f.aiStatus === "review" || f.aiStatus === "processing"
+    );
 
-    // Read all files in the pending directory
-    const filenames = fs.readdirSync(pendingDir);
-    
-    const files = filenames.map((filename) => {
-      const filePath = path.join(pendingDir, filename);
-      const stats = fs.statSync(filePath);
-      
-      // Extract original filename from the unique filename (after timestamp-)
-      const originalFilename = filename.replace(/^\d+-/, "").replace(/_/g, " ");
-      
-      // Determine mime type from extension
-      const ext = path.extname(filename).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        ".pdf": "application/pdf",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".doc": "application/msword",
-        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      };
-      
-      return {
-        id: filename,
-        originalFilename,
-        storagePath: filePath,
-        mimeType: mimeTypes[ext] || "application/octet-stream",
-        fileSize: stats.size,
-        aiStatus: "review", // Mark as ready for review
-        aiCategory: guessCategory(originalFilename, ext),
-        aiConfidence: 0.75, // Placeholder confidence
-        extractedDate: null,
-        extractedProvider: null,
-        extractedBodyRegion: null,
-        extractedText: null,
-        suggestedEvent: null,
-        uploadedAt: stats.birthtime.toISOString(),
-      };
-    });
+    // Transform for API response
+    const fileList = reviewFiles.map((file: typeof files[number]) => ({
+      id: file.id,
+      originalFilename: file.originalFilename,
+      storagePath: file.storagePath,
+      mimeType: file.mimeType || getMimeType(file.originalFilename),
+      fileSize: file.fileSize,
+      aiStatus: file.aiStatus,
+      aiCategory: file.aiCategory || guessCategory(file.originalFilename),
+      aiConfidence: file.aiConfidence || 0.75,
+      extractedDate: file.extractedDate,
+      extractedProvider: file.extractedProvider,
+      extractedBodyRegion: file.extractedBodyRegion,
+      extractedText: file.extractedText,
+      summary: file.summary,
+      suggestedTitle: file.suggestedTitle,
+      keywords: file.keywords ? JSON.parse(file.keywords) : null,
+      batchId: file.batchId,
+      groupId: file.groupId,
+      extractedFromZip: file.extractedFromZip,
+      zipSourceName: file.zipSourceName,
+      suggestedEvent: null, // TODO: Add event suggestions when timeline is implemented
+      uploadedAt: file.uploadedAt.toISOString(),
+      analyzedAt: file.analyzedAt?.toISOString() || null,
+    }));
+
+    // Count by status
+    const totalPending = files.filter((f: typeof files[number]) => f.aiStatus === "pending").length;
+    const totalProcessing = files.filter((f: typeof files[number]) => f.aiStatus === "processing").length;
+    const totalReview = files.filter((f: typeof files[number]) => f.aiStatus === "review").length;
 
     return NextResponse.json(
       {
-        files,
-        totalReview: files.length,
-        totalPending: 0,
-        totalProcessing: 0,
+        files: fileList,
+        totalReview,
+        totalPending,
+        totalProcessing,
       },
       { status: 200 }
     );
@@ -79,33 +66,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
-
-// Simple category guessing based on filename/extension
-function guessCategory(filename: string, ext: string): string {
-  const lower = filename.toLowerCase();
-  
-  if (lower.includes("mri") || lower.includes("xray") || lower.includes("ct") || lower.includes("scan")) {
-    return "imaging";
-  }
-  if (lower.includes("pt") || lower.includes("therapy") || lower.includes("physical")) {
-    return "physical_therapy";
-  }
-  if (lower.includes("rx") || lower.includes("prescription") || lower.includes("medication")) {
-    return "medication";
-  }
-  if (lower.includes("lab") || lower.includes("blood") || lower.includes("test")) {
-    return "lab_results";
-  }
-  if (lower.includes("bill") || lower.includes("invoice") || lower.includes("statement")) {
-    return "billing";
-  }
-  if (lower.includes("visit") || lower.includes("notes") || lower.includes("doctor")) {
-    return "visit_notes";
-  }
-  if ([".png", ".jpg", ".jpeg", ".gif"].includes(ext)) {
-    return "imaging";
-  }
-  
-  return "other";
 }

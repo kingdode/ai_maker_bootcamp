@@ -34,11 +34,20 @@ export default function UploadPage() {
   const [fileGroups, setFileGroups] = useState<FileGroup[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [duplicatesSkipped, setDuplicatesSkipped] = useState<Array<{ filename: string; existingFile: string }>>([]);
 
-  // Check for API key on mount
+  // Check for API key on mount (server-side check)
   useEffect(() => {
-    const key = localStorage.getItem("openai_api_key");
-    setHasApiKey(!!key);
+    const checkApiKey = async () => {
+      try {
+        const response = await fetch("/api/settings/status");
+        const data = await response.json();
+        setHasApiKey(data.configured);
+      } catch {
+        setHasApiKey(false);
+      }
+    };
+    checkApiKey();
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -87,13 +96,21 @@ export default function UploadPage() {
 
       const data = await response.json();
       
+      // Track duplicates that were skipped
+      if (data.skippedDuplicates && data.skippedDuplicates.length > 0) {
+        setDuplicatesSkipped(data.skippedDuplicates);
+        // Clear duplicates notification after 10 seconds
+        setTimeout(() => setDuplicatesSkipped([]), 10000);
+      }
+      
       // Group files by their groupId
-      const groupedFiles = groupFilesFromResponse(data.files, data.batchId);
-      setFileGroups((prev) => [...groupedFiles, ...prev]);
+      if (data.files && data.files.length > 0) {
+        const groupedFiles = groupFilesFromResponse(data.files, data.batchId);
+        setFileGroups((prev) => [...groupedFiles, ...prev]);
 
-      // Auto-trigger AI analysis
-      const apiKey = localStorage.getItem("openai_api_key") || "";
-      await analyzeFiles(data.files, apiKey);
+        // Auto-trigger AI analysis (API key is handled server-side)
+        await analyzeFiles(data.files);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -130,7 +147,7 @@ export default function UploadPage() {
     return groups;
   };
 
-  const analyzeFiles = async (files: UploadedFile[], apiKey: string) => {
+  const analyzeFiles = async (files: UploadedFile[]) => {
     setAnalyzing(true);
 
     for (const file of files) {
@@ -141,7 +158,7 @@ export default function UploadPage() {
         const response = await fetch("/api/ai/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileId: file.id, apiKey }),
+          body: JSON.stringify({ fileId: file.id }),
         });
 
         if (response.ok) {
@@ -150,7 +167,7 @@ export default function UploadPage() {
         } else {
           updateFileStatus(file.id, "failed");
         }
-      } catch (e) {
+      } catch {
         updateFileStatus(file.id, "failed");
       }
     }
@@ -172,9 +189,8 @@ export default function UploadPage() {
   };
 
   const triggerAnalysis = async () => {
-    const apiKey = localStorage.getItem("openai_api_key");
-    if (!apiKey) {
-      setError("Please configure your OpenAI API key in Settings first.");
+    if (!hasApiKey) {
+      setError("OpenAI API key not configured. Add OPENAI_API_KEY to your .env.local file.");
       return;
     }
 
@@ -182,7 +198,7 @@ export default function UploadPage() {
       g.files.filter((f) => f.aiStatus === "pending" || f.aiStatus === "failed")
     );
     if (pendingFiles.length > 0) {
-      await analyzeFiles(pendingFiles, apiKey);
+      await analyzeFiles(pendingFiles);
     }
   };
 
@@ -212,11 +228,10 @@ export default function UploadPage() {
           <div>
             <strong>OpenAI API Key Required</strong>
             <p style={{ margin: "4px 0 0", fontSize: "13px" }}>
-              Configure your API key in{" "}
+              Add <code style={{ background: "#1a1a24", padding: "2px 4px", borderRadius: "3px" }}>OPENAI_API_KEY</code> to your <code style={{ background: "#1a1a24", padding: "2px 4px", borderRadius: "3px" }}>.env.local</code> file to enable AI analysis.{" "}
               <Link href="/settings" style={{ color: "#eab308", textDecoration: "underline" }}>
-                Settings
-              </Link>{" "}
-              to enable automatic AI analysis.
+                Learn more
+              </Link>
             </p>
           </div>
         </div>
@@ -267,6 +282,34 @@ export default function UploadPage() {
 
       {/* Error Message */}
       {error && <div style={styles.error}>{error}</div>}
+
+      {/* Duplicates Skipped Notice */}
+      {duplicatesSkipped.length > 0 && (
+        <div style={styles.duplicateNotice}>
+          <div style={styles.duplicateHeader}>
+            ⚠️ {duplicatesSkipped.length} duplicate file{duplicatesSkipped.length !== 1 ? "s" : ""} skipped
+          </div>
+          <div style={styles.duplicateList}>
+            {duplicatesSkipped.slice(0, 5).map((d, i) => (
+              <div key={i} style={styles.duplicateItem}>
+                <span style={{ color: "#9494a8" }}>{d.filename}</span>
+                <span style={{ color: "#6b6b80", fontSize: "11px" }}>→ already uploaded as "{d.existingFile}"</span>
+              </div>
+            ))}
+            {duplicatesSkipped.length > 5 && (
+              <div style={{ color: "#6b6b80", fontSize: "12px", marginTop: "4px" }}>
+                ...and {duplicatesSkipped.length - 5} more
+              </div>
+            )}
+          </div>
+          <button 
+            onClick={() => setDuplicatesSkipped([])} 
+            style={styles.dismissButton}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Grouped Files Display */}
       {fileGroups.length > 0 && (
@@ -509,6 +552,40 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "8px",
     marginBottom: "24px",
     fontSize: "14px",
+  },
+  duplicateNotice: {
+    background: "rgba(234, 179, 8, 0.1)",
+    border: "1px solid #eab308",
+    borderRadius: "8px",
+    padding: "16px",
+    marginBottom: "24px",
+  },
+  duplicateHeader: {
+    color: "#eab308",
+    fontWeight: 600,
+    fontSize: "14px",
+    marginBottom: "12px",
+  },
+  duplicateList: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "6px",
+  },
+  duplicateItem: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "2px",
+    fontSize: "13px",
+  },
+  dismissButton: {
+    marginTop: "12px",
+    padding: "6px 12px",
+    background: "transparent",
+    border: "1px solid #eab308",
+    borderRadius: "4px",
+    color: "#eab308",
+    fontSize: "12px",
+    cursor: "pointer",
   },
   queueSection: {
     background: "#13131a",

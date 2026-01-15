@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { FeaturedDeal, Offer, CrowdsourcedReport } from '@/lib/types';
 import { calculateStackedDeal, parseCardOffer, getStackType, DealComponents, DealCalculation } from '@/lib/dealCalculator';
 
 export default function AdminPage() {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loggingIn, setLoggingIn] = useState(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const isAuthenticated = !!session;
+  const authLoading = status === 'loading';
 
   const [deals, setDeals] = useState<FeaturedDeal[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
@@ -21,58 +21,15 @@ export default function AdminPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<'featured' | 'offers' | 'userreports' | 'settings'>('featured');
 
-  // Check authentication on mount
+  // Redirect to login if not authenticated
   useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/login');
-      const data = await response.json();
-      setIsAuthenticated(data.authenticated);
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setAuthLoading(false);
+    if (status === 'unauthenticated') {
+      router.push('/admin/login');
     }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoggingIn(true);
-    setLoginError('');
-
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: loginPassword }),
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setIsAuthenticated(true);
-        setLoginPassword('');
-      } else {
-        setLoginError(data.message || 'Invalid password');
-      }
-    } catch (error) {
-      console.error('Login failed:', error);
-      setLoginError('Login failed. Please try again.');
-    } finally {
-      setLoggingIn(false);
-    }
-  };
+  }, [status, router]);
 
   const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setIsAuthenticated(false);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    await signOut({ callbackUrl: '/' });
   };
   
   // Promotion modal state
@@ -772,7 +729,7 @@ export default function AdminPage() {
     );
   }
 
-  // Login screen
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
@@ -780,46 +737,12 @@ export default function AdminPage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(99,102,241,0.15),transparent)]" />
         </div>
         
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
-              <span className="text-4xl">💰</span>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">DealStackr Admin</h1>
-            <p className="text-gray-400">Enter your password to access the admin panel</p>
+        <div className="w-full max-w-md text-center">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <span className="text-4xl">💰</span>
           </div>
-          
-          <form onSubmit={handleLogin} className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-8">
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-400 mb-2">Admin Password</label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="Enter password"
-                className="w-full px-4 py-3 bg-[#0a0a0f] border border-[#2a2a3a] rounded-xl text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
-                autoFocus
-              />
-            </div>
-            
-            {loginError && (
-              <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
-                {loginError}
-              </div>
-            )}
-            
-            <button
-              type="submit"
-              disabled={loggingIn || !loginPassword}
-              className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loggingIn ? 'Logging in...' : '🔐 Login to Admin'}
-            </button>
-          </form>
-          
-          <p className="text-center text-gray-500 text-sm mt-6">
-            <Link href="/" className="text-indigo-400 hover:underline">← Back to DealStackr</Link>
-          </p>
+          <h1 className="text-2xl font-bold text-white mb-2">Redirecting to login...</h1>
+          <p className="text-gray-400">Please wait while we authenticate you.</p>
         </div>
       </div>
     );
@@ -850,6 +773,20 @@ export default function AdminPage() {
               </span>
             </div>
             <div className="flex items-center gap-4">
+              {session?.user && (
+                <div className="flex items-center gap-2">
+                  {session.user.image && (
+                    <img 
+                      src={session.user.image} 
+                      alt={session.user.name || 'User'} 
+                      className="w-8 h-8 rounded-full"
+                    />
+                  )}
+                  <span className="text-sm text-gray-400 hidden md:inline">
+                    {session.user.email}
+                  </span>
+                </div>
+              )}
               <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
                 ← Back to Site
               </Link>

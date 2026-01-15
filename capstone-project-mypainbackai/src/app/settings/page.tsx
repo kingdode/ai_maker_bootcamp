@@ -3,61 +3,36 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+interface ApiKeyStatus {
+  configured: boolean;
+  maskedKey: string | null;
+  message: string;
+}
+
 export default function SettingsPage() {
-  const [apiKey, setApiKey] = useState("");
-  const [savedKey, setSavedKey] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [status, setStatus] = useState<ApiKeyStatus | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load saved API key from localStorage
-    const stored = localStorage.getItem("openai_api_key");
-    if (stored) {
-      setSavedKey(stored);
-      setApiKey(stored);
-    }
-  }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage(null);
-
-    try {
-      // Validate the API key by making a test request
-      const response = await fetch("/api/settings/validate-key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem("openai_api_key", apiKey);
-        setSavedKey(apiKey);
-        setMessage({ type: "success", text: "API key saved and validated successfully!" });
-      } else {
-        setMessage({ type: "error", text: data.error || "Invalid API key" });
+    // Check API key status from server
+    const checkStatus = async () => {
+      try {
+        const response = await fetch("/api/settings/status");
+        const data = await response.json();
+        setStatus(data);
+      } catch (error) {
+        console.error("Failed to check API key status:", error);
+        setStatus({
+          configured: false,
+          maskedKey: null,
+          message: "Failed to check API key status",
+        });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      setMessage({ type: "error", text: "Failed to validate API key" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleClear = () => {
-    localStorage.removeItem("openai_api_key");
-    setApiKey("");
-    setSavedKey("");
-    setMessage({ type: "success", text: "API key removed" });
-  };
-
-  const maskKey = (key: string) => {
-    if (!key) return "";
-    if (key.length <= 8) return "••••••••";
-    return key.slice(0, 7) + "••••••••" + key.slice(-4);
-  };
+    };
+    checkStatus();
+  }, []);
 
   return (
     <div style={styles.page}>
@@ -78,58 +53,50 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {savedKey && (
-          <div style={styles.savedKeyBox}>
-            <span style={styles.savedKeyLabel}>Current key:</span>
-            <code style={styles.savedKeyValue}>{maskKey(savedKey)}</code>
-            <span style={styles.savedKeyStatus}>✓ Active</span>
+        {loading ? (
+          <div style={styles.loadingBox}>
+            <span>Checking configuration...</span>
+          </div>
+        ) : status?.configured ? (
+          <div style={styles.statusBox}>
+            <div style={styles.statusIcon}>✓</div>
+            <div>
+              <div style={styles.statusTitle}>API Key Configured</div>
+              <code style={styles.maskedKey}>{status.maskedKey}</code>
+            </div>
+          </div>
+        ) : (
+          <div style={styles.warningBox}>
+            <div style={styles.warningIcon}>⚠️</div>
+            <div>
+              <div style={styles.warningTitle}>API Key Not Configured</div>
+              <p style={styles.warningText}>
+                To enable AI features, add your OpenAI API key to the <code style={styles.codeInline}>.env.local</code> file:
+              </p>
+              <pre style={styles.codeBlock}>
+{`# .env.local
+OPENAI_API_KEY="sk-proj-your-key-here"`}
+              </pre>
+              <p style={styles.warningHint}>
+                Get your API key from{" "}
+                <a 
+                  href="https://platform.openai.com/api-keys" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={styles.link}
+                >
+                  platform.openai.com
+                </a>
+              </p>
+            </div>
           </div>
         )}
 
-        <div style={styles.inputGroup}>
-          <label style={styles.label}>API Key</label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-proj-..."
-            style={styles.input}
-          />
-          <p style={styles.inputHint}>
-            Get your API key from{" "}
-            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" style={styles.link}>
-              platform.openai.com
-            </a>
-          </p>
-        </div>
-
-        {message && (
-          <div style={{
-            ...styles.message,
-            background: message.type === "success" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-            borderColor: message.type === "success" ? "#10b981" : "#ef4444",
-            color: message.type === "success" ? "#10b981" : "#ef4444",
-          }}>
-            {message.text}
-          </div>
-        )}
-
-        <div style={styles.buttonRow}>
-          <button
-            onClick={handleSave}
-            disabled={saving || !apiKey}
-            style={{
-              ...styles.buttonPrimary,
-              opacity: saving || !apiKey ? 0.5 : 1,
-            }}
-          >
-            {saving ? "Validating..." : "Save API Key"}
-          </button>
-          {savedKey && (
-            <button onClick={handleClear} style={styles.buttonDanger}>
-              Remove Key
-            </button>
-          )}
+        <div style={styles.securityNote}>
+          <span style={styles.securityIcon}>🔒</span>
+          <span>
+            Your API key is stored securely on the server and never exposed to the browser.
+          </span>
         </div>
       </div>
 
@@ -174,6 +141,26 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Environment Variables Info */}
+      <div style={styles.card}>
+        <h2 style={styles.cardTitle}>Environment Variables</h2>
+        <p style={styles.envDesc}>
+          This application uses environment variables for sensitive configuration. 
+          Create a <code style={styles.codeInline}>.env.local</code> file in the project root with:
+        </p>
+        <pre style={styles.codeBlock}>
+{`# Database URL for Prisma
+DATABASE_URL="file:./dev.db"
+
+# OpenAI API Key
+OPENAI_API_KEY="sk-proj-your-key-here"`}
+        </pre>
+        <p style={styles.envNote}>
+          <strong>Note:</strong> The <code style={styles.codeInline}>.env.local</code> file is gitignored 
+          and should never be committed to version control.
+        </p>
       </div>
     </div>
   );
@@ -232,91 +219,104 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#9494a8",
     margin: 0,
   },
-  savedKeyBox: {
+  loadingBox: {
+    padding: "16px",
+    background: "#1a1a24",
+    borderRadius: "8px",
+    color: "#9494a8",
+    fontSize: "14px",
+  },
+  statusBox: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    padding: "12px 16px",
+    gap: "16px",
+    padding: "16px",
     background: "rgba(16, 185, 129, 0.1)",
+    border: "1px solid #10b981",
     borderRadius: "8px",
-    marginBottom: "20px",
+    marginBottom: "16px",
   },
-  savedKeyLabel: {
-    fontSize: "14px",
-    color: "#9494a8",
+  statusIcon: {
+    fontSize: "24px",
+    color: "#10b981",
   },
-  savedKeyValue: {
+  statusTitle: {
+    fontSize: "15px",
+    fontWeight: 600,
+    color: "#10b981",
+    marginBottom: "4px",
+  },
+  maskedKey: {
     fontSize: "13px",
-    color: "#f0f0f5",
+    color: "#9494a8",
     background: "#1a1a24",
     padding: "4px 8px",
     borderRadius: "4px",
     fontFamily: "monospace",
   },
-  savedKeyStatus: {
-    fontSize: "13px",
-    color: "#10b981",
-    marginLeft: "auto",
+  warningBox: {
+    display: "flex",
+    gap: "16px",
+    padding: "16px",
+    background: "rgba(234, 179, 8, 0.1)",
+    border: "1px solid #eab308",
+    borderRadius: "8px",
+    marginBottom: "16px",
   },
-  inputGroup: {
-    marginBottom: "20px",
+  warningIcon: {
+    fontSize: "24px",
   },
-  label: {
-    display: "block",
-    fontSize: "14px",
-    fontWeight: 500,
-    color: "#f0f0f5",
+  warningTitle: {
+    fontSize: "15px",
+    fontWeight: 600,
+    color: "#eab308",
     marginBottom: "8px",
   },
-  input: {
-    width: "100%",
-    padding: "12px 16px",
+  warningText: {
     fontSize: "14px",
-    background: "#1a1a24",
-    border: "1px solid #2a2a3a",
-    borderRadius: "8px",
-    color: "#f0f0f5",
-    outline: "none",
+    color: "#9494a8",
+    margin: "0 0 12px 0",
   },
-  inputHint: {
+  warningHint: {
     fontSize: "13px",
     color: "#6b6b80",
-    marginTop: "8px",
+    margin: 0,
+  },
+  codeInline: {
+    background: "#1a1a24",
+    padding: "2px 6px",
+    borderRadius: "4px",
+    fontSize: "13px",
+    fontFamily: "monospace",
+    color: "#f0f0f5",
+  },
+  codeBlock: {
+    background: "#1a1a24",
+    padding: "12px 16px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    fontFamily: "monospace",
+    color: "#f0f0f5",
+    overflow: "auto",
+    margin: "12px 0",
+    whiteSpace: "pre",
   },
   link: {
     color: "#8b5cf6",
     textDecoration: "underline",
   },
-  message: {
-    padding: "12px 16px",
-    borderRadius: "8px",
-    marginBottom: "20px",
-    fontSize: "14px",
-    border: "1px solid",
-  },
-  buttonRow: {
+  securityNote: {
     display: "flex",
-    gap: "12px",
-  },
-  buttonPrimary: {
-    padding: "12px 24px",
+    alignItems: "center",
+    gap: "8px",
+    padding: "12px 16px",
+    background: "#1a1a24",
     borderRadius: "8px",
-    background: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
-    color: "#fff",
-    fontWeight: 600,
-    fontSize: "14px",
-    border: "none",
-    cursor: "pointer",
+    fontSize: "13px",
+    color: "#9494a8",
   },
-  buttonDanger: {
-    padding: "12px 24px",
-    borderRadius: "8px",
-    background: "transparent",
-    color: "#ef4444",
-    fontWeight: 600,
-    fontSize: "14px",
-    border: "1px solid #ef4444",
-    cursor: "pointer",
+  securityIcon: {
+    fontSize: "16px",
   },
   featureList: {
     display: "flex",
@@ -337,5 +337,14 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#9494a8",
     margin: "4px 0 0 0",
   },
+  envDesc: {
+    fontSize: "14px",
+    color: "#9494a8",
+    marginTop: "8px",
+  },
+  envNote: {
+    fontSize: "13px",
+    color: "#6b6b80",
+    margin: 0,
+  },
 };
-
