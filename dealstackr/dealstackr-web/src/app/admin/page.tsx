@@ -1094,10 +1094,10 @@ export default function AdminPage() {
                           </button>
                           <button
                             onClick={() => handleEdit(deal)}
-                            className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg hover:bg-indigo-500/20 transition-colors"
-                            title="Edit"
+                            className="px-3 py-2 bg-indigo-500 text-white text-sm font-medium rounded-lg hover:bg-indigo-600 transition-colors flex items-center gap-1"
+                            title="Edit Title & Details"
                           >
-                            ✏️
+                            ✏️ Edit
                           </button>
                           <button
                             onClick={() => handleDelete(deal.id)}
