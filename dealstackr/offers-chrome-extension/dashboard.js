@@ -2524,7 +2524,7 @@
           throw new Error('No offers to sync');
         }
         
-        const response = await fetch('http://localhost:3000/api/offers', {
+        const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ offers: offersToSync })
@@ -2551,7 +2551,7 @@
               });
               
               if (crowdsourcedResult.crowdsourcedDeals && Object.keys(crowdsourcedResult.crowdsourcedDeals).length > 0) {
-                const crowdsourcedResponse = await fetch('http://localhost:3000/api/crowdsourced', {
+                const crowdsourcedResponse = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ crowdsourcedDeals: crowdsourcedResult.crowdsourcedDeals })

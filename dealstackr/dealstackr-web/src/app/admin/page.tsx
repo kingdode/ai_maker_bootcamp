@@ -6,6 +6,13 @@ import { FeaturedDeal, Offer, CrowdsourcedReport } from '@/lib/types';
 import { calculateStackedDeal, parseCardOffer, getStackType, DealComponents, DealCalculation } from '@/lib/dealCalculator';
 
 export default function AdminPage() {
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+
   const [deals, setDeals] = useState<FeaturedDeal[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [crowdsourcedData, setCrowdsourcedData] = useState<CrowdsourcedReport[]>([]);
@@ -13,6 +20,60 @@ export default function AdminPage() {
   const [editingDeal, setEditingDeal] = useState<FeaturedDeal | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [activeTab, setActiveTab] = useState<'featured' | 'offers' | 'userreports' | 'settings'>('featured');
+
+  // Check authentication on mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/auth/login');
+      const data = await response.json();
+      setIsAuthenticated(data.authenticated);
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setIsAuthenticated(false);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    setLoginError('');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: loginPassword }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setIsAuthenticated(true);
+        setLoginPassword('');
+      } else {
+        setLoginError(data.message || 'Invalid password');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      setLoginError('Login failed. Please try again.');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
   
   // Promotion modal state
   const [promotingOffer, setPromotingOffer] = useState<Offer | null>(null);
@@ -665,6 +726,71 @@ export default function AdminPage() {
     }
   };
 
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Login screen
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center px-4">
+        <div className="fixed inset-0 -z-10">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(99,102,241,0.15),transparent)]" />
+        </div>
+        
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+              <span className="text-4xl">💰</span>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">DealStackr Admin</h1>
+            <p className="text-gray-400">Enter your password to access the admin panel</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-8">
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-400 mb-2">Admin Password</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="Enter password"
+                className="w-full px-4 py-3 bg-[#0a0a0f] border border-[#2a2a3a] rounded-xl text-white placeholder-gray-500 focus:border-indigo-500 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            
+            {loginError && (
+              <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                {loginError}
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={loggingIn || !loginPassword}
+              className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl text-white font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loggingIn ? 'Logging in...' : '🔐 Login to Admin'}
+            </button>
+          </form>
+          
+          <p className="text-center text-gray-500 text-sm mt-6">
+            <Link href="/" className="text-indigo-400 hover:underline">← Back to DealStackr</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
       {/* Background */}
@@ -689,9 +815,17 @@ export default function AdminPage() {
                 ADMIN
               </span>
             </div>
-            <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
-              ← Back to Site
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
+                ← Back to Site
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1.5 text-sm bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-colors"
+              >
+                🚪 Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>

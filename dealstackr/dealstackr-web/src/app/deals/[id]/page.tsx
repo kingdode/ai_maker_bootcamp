@@ -226,6 +226,20 @@ export default async function DealPage({ params }: DealPageProps) {
               </section>
             )}
 
+            {/* Raw Article Content (fallback if no structured AI summary) */}
+            {deal.articleContent && !deal.aiSummary?.vendorBackground && (
+              <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
+                <h2 className="text-xl font-bold text-white mb-4">📝 Deal Details</h2>
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <div className="text-gray-300 leading-relaxed whitespace-pre-line">
+                    {deal.articleContent.split('\n').map((line, i) => (
+                      <p key={i} className="mb-3">{line.replace(/\*\*/g, '')}</p>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* Disclosure */}
             <section className="bg-[#12121a] rounded-2xl border border-[#2a2a3a] p-6">
               <p className="text-xs text-gray-500 leading-relaxed">
