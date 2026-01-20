@@ -3,6 +3,7 @@ import { getOffersAsync as getOffers, getOffersByIssuer, getStackableOffers, get
 import { checkAdminAuth } from '@/lib/supabase/auth-check';
 import { OffersArraySchema, validateInput, ValidationError, validateApiKey } from '@/lib/validation';
 import { getCorsHeaders, getPreflightHeaders } from '@/lib/cors';
+import { checkRateLimit, getClientIdentifier, createRateLimitHeaders } from '@/lib/rateLimit';
 
 // API key for Chrome extension sync
 // IMPORTANT: Set SYNC_API_KEY in environment variables to a secure random value
@@ -28,6 +29,23 @@ export async function OPTIONS(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const origin = request.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  
+  // Rate limiting for GET requests (more lenient)
+  const clientId = getClientIdentifier(request);
+  const rateLimit = checkRateLimit(clientId, { 
+    maxRequests: 200,  // 200 requests per 15 minutes for reads
+    windowSeconds: 900 
+  });
+  
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { 
+        status: 429, 
+        headers: { ...corsHeaders, ...createRateLimitHeaders(rateLimit) }
+      }
+    );
+  }
   
   try {
     const { searchParams } = new URL(request.url);
@@ -60,7 +78,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(await getOffersByIssuer(issuer), { headers: corsHeaders });
     }
     
-    return NextResponse.json(await getOffers(), { headers: corsHeaders });
+    return NextResponse.json(await getOffers(), { 
+      headers: { ...corsHeaders, ...createRateLimitHeaders(rateLimit) }
+    });
   } catch (error) {
     console.error('[API] Error in GET /api/offers:', error);
     return NextResponse.json(
@@ -74,6 +94,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
+  
+  // Rate limiting for POST requests (stricter)
+  const clientId = getClientIdentifier(request);
+  const rateLimit = checkRateLimit(`post:${clientId}`, { 
+    maxRequests: 50,   // 50 requests per 15 minutes for writes
+    windowSeconds: 900 
+  });
+  
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: 'Too many sync requests. Please try again later.' },
+      { 
+        status: 429, 
+        headers: { ...corsHeaders, ...createRateLimitHeaders(rateLimit) }
+      }
+    );
+  }
   
   // Runtime API key validation
   if (!checkApiKeyAtRuntime()) {

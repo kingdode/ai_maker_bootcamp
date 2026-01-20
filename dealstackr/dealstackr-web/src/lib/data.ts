@@ -3,10 +3,17 @@ import { Offer, FeaturedDeal, DashboardStats, CrowdsourcedReport } from './types
 import { calculateDealScore, parseOfferValue } from './offerScoring';
 
 // Initialize Supabase client with service role for server-side operations
+// Service role bypasses RLS for admin operations - NEVER expose to client!
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Use service role key for server-side data operations
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
 
 // ============================================================================
 // OFFERS
