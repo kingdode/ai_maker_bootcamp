@@ -1,0 +1,140 @@
+
+/* Settings Panel */
+.settings-panel {
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 10px 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.settings-panel h3 {
+  margin-bottom: 15px;
+  color: #667eea;
+  font-size: 16px;
+}
+
+.settings-content {
+  margin-bottom: 15px;
+}
+
+.settings-content label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #333;
+}
+
+.settings-content input[type="password"],
+.settings-content input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.settings-button {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px 10px;
+  margin-right: 10px;
+  transition: transform 0.2s;
+}
+
+.settings-button:hover {
+  transform: scale(1.1);
+}
+
+.toggle-button {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-right: 10px;
+  transition: background 0.2s;
+}
+
+.toggle-button:hover {
+  background: #e0e0e0;
+}
+
+.save-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.save-button:hover {
+  background: #5568d3;
+}
+
+.close-button {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.close-button:hover {
+  background: #e0e0e0;
+}
+
+.settings-help {
+  font-size: 12px;
+  color: #666;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.settings-help a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.settings-help a:hover {
+  text-decoration: underline;
+}
+
+.api-key-status {
+  font-size: 12px;
+  margin-top: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  display: none;
+}
+
+.api-key-status.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  display: block;
+}
+
+.api-key-status.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  display: block;
+}
+
+.api-key-status.warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  display: block;
+}

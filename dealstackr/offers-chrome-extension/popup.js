@@ -10,6 +10,13 @@
   // DOM Elements
   const scanButton = document.getElementById('scanButton');
   const openDashboardButton = document.getElementById('openDashboardButton');
+  const settingsButton = document.getElementById('settingsButton');
+  const settingsPanel = document.getElementById('settingsPanel');
+  const closeSettings = document.getElementById('closeSettings');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  const toggleApiKey = document.getElementById('toggleApiKey');
+  const saveApiKey = document.getElementById('saveApiKey');
+  const apiKeyStatus = document.getElementById('apiKeyStatus');
   const summaryRow = document.getElementById('summaryRow');
   const totalOffers = document.getElementById('totalOffers');
   const chaseCount = document.getElementById('chaseCount');
@@ -966,6 +973,15 @@
       if (cohortSelect) cohortSelect.addEventListener('change', handleCohortChange);
       if (newCohortButton) newCohortButton.addEventListener('click', handleNewCohortClick);
       
+      // Settings panel event listeners
+      if (settingsButton) settingsButton.addEventListener('click', toggleSettings);
+      if (closeSettings) closeSettings.addEventListener('click', hideSettings);
+      if (toggleApiKey) toggleApiKey.addEventListener('click', toggleApiKeyVisibility);
+      if (saveApiKey) saveApiKey.addEventListener('click', saveApiKeyToStorage);
+      
+      // Load saved API key on startup
+      loadSavedApiKey();
+      
       // Check affiliate confidence for current page (if on a merchant site)
       checkAffiliateConfidence().catch(err => {
         console.warn('[DealStackr] Error checking affiliate:', err);
@@ -982,6 +998,84 @@
       console.error('[DealStackr] Error stack:', error.stack);
       alert('Error initializing extension: ' + error.message);
     }
+  }
+
+  // ============================================================================
+  // SETTINGS FUNCTIONS
+  // ============================================================================
+  
+  function toggleSettings() {
+    if (settingsPanel.style.display === 'none') {
+      settingsPanel.style.display = 'block';
+      // Hide other panels
+      if (summaryRow) summaryRow.style.display = 'none';
+      if (filters) filters.style.display = 'none';
+      if (sortControls) sortControls.style.display = 'none';
+      if (offersContainer) offersContainer.style.display = 'none';
+      if (stackBanner) stackBanner.style.display = 'none';
+    } else {
+      hideSettings();
+    }
+  }
+  
+  function hideSettings() {
+    settingsPanel.style.display = 'none';
+    // Restore the normal view
+    init();
+  }
+  
+  function toggleApiKeyVisibility() {
+    if (apiKeyInput.type === 'password') {
+      apiKeyInput.type = 'text';
+      toggleApiKey.textContent = '🙈 Hide';
+    } else {
+      apiKeyInput.type = 'password';
+      toggleApiKey.textContent = '👁️ Show';
+    }
+  }
+  
+  async function loadSavedApiKey() {
+    try {
+      const { userApiKey } = await chrome.storage.local.get(['userApiKey']);
+      if (userApiKey) {
+        apiKeyInput.value = userApiKey;
+        showApiKeyStatus('API key loaded', 'success');
+      }
+    } catch (error) {
+      console.error('[DealStackr] Error loading API key:', error);
+    }
+  }
+  
+  async function saveApiKeyToStorage() {
+    const apiKey = apiKeyInput.value.trim();
+    
+    if (!apiKey) {
+      showApiKeyStatus('Please enter an API key', 'error');
+      return;
+    }
+    
+    // Basic validation (64 chars hex)
+    if (apiKey.length < 32) {
+      showApiKeyStatus('API key seems too short. Please check it.', 'warning');
+    }
+    
+    try {
+      await chrome.storage.local.set({ 'userApiKey': apiKey });
+      showApiKeyStatus('✅ API key saved successfully!', 'success');
+      
+      // Auto-close after 2 seconds
+      setTimeout(() => {
+        hideSettings();
+      }, 2000);
+    } catch (error) {
+      console.error('[DealStackr] Error saving API key:', error);
+      showApiKeyStatus('Error saving API key: ' + error.message, 'error');
+    }
+  }
+  
+  function showApiKeyStatus(message, type) {
+    apiKeyStatus.textContent = message;
+    apiKeyStatus.className = `api-key-status ${type}`;
   }
 
   // Initialize when DOM is ready

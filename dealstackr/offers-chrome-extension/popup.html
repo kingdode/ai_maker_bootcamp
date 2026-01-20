@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DealStackr</title>
   <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="settings-styles.css">
 </head>
 <body>
   <div class="container">
@@ -12,10 +13,28 @@
     <header class="header">
       <h1>DealStackr</h1>
       <div class="header-actions">
+        <button id="settingsButton" class="settings-button" title="Settings">⚙️</button>
         <button id="scanButton" class="scan-button">Scan Offers</button>
         <button id="openDashboardButton" class="dashboard-button">Open Dashboard</button>
       </div>
     </header>
+
+    <!-- Settings Panel (initially hidden) -->
+    <div id="settingsPanel" class="settings-panel" style="display: none;">
+      <h3>🔐 API Settings</h3>
+      <div class="settings-content">
+        <label for="apiKeyInput">API Key:</label>
+        <input type="password" id="apiKeyInput" placeholder="Enter your API key">
+        <button id="toggleApiKey" class="toggle-button">👁️ Show</button>
+        <button id="saveApiKey" class="save-button">Save Key</button>
+        <p class="settings-help">
+          Get your API key from: <br>
+          <a href="https://dealstackr-dashboard.up.railway.app/admin" target="_blank">DealStackr Dashboard</a>
+        </p>
+        <p id="apiKeyStatus" class="api-key-status"></p>
+      </div>
+      <button id="closeSettings" class="close-button">Close</button>
+    </div>
 
     <!-- Stack Potential Banner (shown on merchant sites) -->
     <div id="stackBanner" class="stack-banner" style="display: none;">

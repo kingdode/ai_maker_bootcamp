@@ -2524,11 +2524,19 @@
           throw new Error('No offers to sync');
         }
         
+        // Get user's API key from storage
+        const { userApiKey } = await chrome.storage.local.get(['userApiKey']);
+        
+        if (!userApiKey) {
+          showMessage('⚠️ Please set your API key in extension settings (click extension icon)', 'warning');
+          return;
+        }
+        
         const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'x-sync-api-key': '59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61'
+            'x-sync-api-key': userApiKey
           },
           body: JSON.stringify({ offers: offersToSync })
         });
@@ -2554,11 +2562,12 @@
               });
               
               if (crowdsourcedResult.crowdsourcedDeals && Object.keys(crowdsourcedResult.crowdsourcedDeals).length > 0) {
+                // Use the same API key
                 const crowdsourcedResponse = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
                   method: 'POST',
                   headers: { 
                     'Content-Type': 'application/json',
-                    'x-sync-api-key': '59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61'
+                    'x-sync-api-key': userApiKey
                   },
                   body: JSON.stringify({ crowdsourcedDeals: crowdsourcedResult.crowdsourcedDeals })
                 });
