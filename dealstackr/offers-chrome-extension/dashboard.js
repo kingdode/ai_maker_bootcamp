@@ -2520,14 +2520,37 @@
         
         console.log('[DealStackr] Syncing', offersToSync.length, 'offers...');
         
-        // Get user's API key from storage (optional - only needed for offer sync)
-        const { userApiKey } = await chrome.storage.local.get(['userApiKey']);
-        
         let offersSynced = 0;
         let crowdsourcedCount = 0;
-        let offersSkipped = false;
         
-        // STEP 1: Always sync crowdsourced reports (no API key needed)
+        // STEP 1: Sync offers (PUBLIC - no API key required)
+        if (offersToSync.length > 0) {
+          try {
+            console.log('[DealStackr] Syncing offers (public, no API key)...');
+            const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ offers: offersToSync })
+            });
+            
+            console.log('[DealStackr] Response status:', response.status);
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('[DealStackr] Response:', result);
+              if (result.success) {
+                offersSynced = result.count || offersToSync.length;
+              }
+            } else {
+              const errorData = await response.json().catch(() => ({}));
+              console.warn('[DealStackr] Offer sync failed:', response.status, errorData);
+            }
+          } catch (offerError) {
+            console.warn('[DealStackr] Failed to sync offers:', offerError);
+          }
+        }
+        
+        // STEP 2: Sync crowdsourced reports (PUBLIC - no API key required)
         try {
           if (chrome?.storage?.local) {
             const crowdsourcedResult = await new Promise(resolve => {
@@ -2537,7 +2560,7 @@
             });
             
             if (crowdsourcedResult.crowdsourcedDeals && Object.keys(crowdsourcedResult.crowdsourcedDeals).length > 0) {
-              console.log('[DealStackr] Syncing crowdsourced reports (public, no API key)...');
+              console.log('[DealStackr] Syncing crowdsourced reports...');
               const crowdsourcedResponse = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2553,35 +2576,6 @@
           }
         } catch (csError) {
           console.warn('[DealStackr] Failed to sync crowdsourced data:', csError);
-        }
-        
-        // STEP 2: Sync offers (requires API key - admin only)
-        if (offersToSync.length > 0) {
-          if (!userApiKey) {
-            console.log('[DealStackr] No API key - skipping offer sync (admin only)');
-            offersSkipped = true;
-          } else {
-            const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'x-sync-api-key': userApiKey
-              },
-              body: JSON.stringify({ offers: offersToSync })
-            });
-            
-            console.log('[DealStackr] Response status:', response.status);
-            
-            if (response.ok) {
-              const result = await response.json();
-              console.log('[DealStackr] Response:', result);
-              if (result.success) {
-                offersSynced = result.count || offersToSync.length;
-              }
-            } else {
-              console.warn('[DealStackr] Offer sync failed:', response.status);
-            }
-          }
         }
         
         // Show success message
@@ -2608,14 +2602,13 @@
         if (crowdsourcedCount > 0) {
           alertMsg += (alertMsg ? ' and ' : '') + `${crowdsourcedCount} user reports`;
         }
-        if (offersSkipped && offersToSync.length > 0) {
-          alertMsg += (alertMsg ? '\n\n' : '') + `ℹ️ ${offersToSync.length} offers were NOT synced (admin API key required).\nUser reports were synced successfully!`;
-        }
         
         if (alertMsg) {
           alert(`Successfully synced ${alertMsg} to the website!`);
+        } else if (offersToSync.length === 0) {
+          alert('No offers to sync. Scan some offers from Chase or Amex first!');
         } else {
-          alert('Nothing to sync. Log some deals first!');
+          alert('Sync complete!');
         }
       } catch (error) {
         console.error('[DealStackr] Sync error:', error);

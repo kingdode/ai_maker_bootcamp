@@ -90,15 +90,15 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Protected with sync API key (for Chrome extension)
+// POST - PUBLIC for offer sync (rate limited), Admin-only for clear action
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   
-  // Rate limiting for POST requests (stricter)
+  // Rate limiting for POST requests
   const clientId = getClientIdentifier(request);
   const rateLimit = checkRateLimit(`post:${clientId}`, { 
-    maxRequests: 50,   // 50 requests per 15 minutes for writes
+    maxRequests: 30,   // 30 requests per 15 minutes for public writes
     windowSeconds: 900 
   });
   
@@ -112,51 +112,39 @@ export async function POST(request: NextRequest) {
     );
   }
   
-  // Runtime API key validation
-  if (!checkApiKeyAtRuntime()) {
+  // Check request size limit (max 1MB)
+  const contentLength = request.headers.get('content-length');
+  const MAX_BODY_SIZE = 1024 * 1024; // 1MB
+  if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
     return NextResponse.json(
-      { error: 'Server configuration error. Please contact administrator.' },
-      { status: 503, headers: corsHeaders }
+      { error: 'Request body too large. Maximum 1MB allowed.' },
+      { status: 413, headers: corsHeaders }
     );
   }
   
   try {
-    // Check for sync API key
-    const apiKey = request.headers.get('x-sync-api-key');
-    
-    // Validate API key OR check admin authentication
-    let isAuthorized = false;
-    
-    // Use timing-safe comparison to prevent timing attacks
-    if (apiKey && SYNC_API_KEY && timingSafeCompare(apiKey, SYNC_API_KEY)) {
-      isAuthorized = true;
-    } else {
-      // Fallback: check if user is authenticated as admin
-      const auth = await checkAdminAuth();
-      isAuthorized = auth.authenticated;
-    }
-    
-    if (!isAuthorized) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Valid X-Sync-API-Key header or admin authentication required.' },
-        { status: 401, headers: corsHeaders }
-      );
-    }
-    
-    // Check request size limit (max 1MB)
-    const contentLength = request.headers.get('content-length');
-    const MAX_BODY_SIZE = 1024 * 1024; // 1MB
-    if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
-      return NextResponse.json(
-        { error: 'Request body too large. Maximum 1MB allowed.' },
-        { status: 413, headers: corsHeaders }
-      );
-    }
-    
     const body = await request.json();
     
-    // Handle clear action
+    // Handle clear action - ADMIN ONLY
     if (body.action === 'clear') {
+      // Check for API key or admin auth for destructive actions
+      const apiKey = request.headers.get('x-sync-api-key');
+      let isAdmin = false;
+      
+      if (apiKey && SYNC_API_KEY && timingSafeCompare(apiKey, SYNC_API_KEY)) {
+        isAdmin = true;
+      } else {
+        const auth = await checkAdminAuth();
+        isAdmin = auth.authenticated;
+      }
+      
+      if (!isAdmin) {
+        return NextResponse.json(
+          { error: 'Unauthorized. Admin access required to clear offers.' },
+          { status: 401, headers: corsHeaders }
+        );
+      }
+      
       await clearOffers();
       return NextResponse.json(
         { success: true, message: 'All offers cleared' },
