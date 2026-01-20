@@ -3,6 +3,7 @@ import { CrowdsourcedReport } from '@/lib/types';
 import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
 import { CrowdsourcedDealsSchema, validateInput, ValidationError, validateApiKey, timingSafeCompare } from '@/lib/validation';
 import { getCorsHeaders, getPreflightHeaders } from '@/lib/cors';
+import { checkRateLimit, getClientIdentifier, createRateLimitHeaders } from '@/lib/rateLimit';
 import fs from 'fs';
 import path from 'path';
 
@@ -94,39 +95,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Protected with simple API key (for Chrome extension sync)
+// POST - PUBLIC for user reports (rate limited to prevent abuse)
+// No API key required - this allows any user to submit crowdsourced reports
 export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
   
-  // Runtime API key validation
-  if (!checkApiKeyAtRuntime()) {
+  // Rate limiting for crowdsourced reports (prevent spam)
+  // Allow 20 reports per 15 minutes per IP
+  const clientId = getClientIdentifier(request);
+  const rateLimit = checkRateLimit(`crowdsourced:${clientId}`, { 
+    maxRequests: 20,
+    windowSeconds: 900 // 15 minutes
+  });
+  
+  if (!rateLimit.success) {
     return NextResponse.json(
-      { error: 'Server configuration error. Please contact administrator.' },
-      { status: 503, headers: corsHeaders }
+      { error: 'Too many reports submitted. Please try again later.' },
+      { 
+        status: 429, 
+        headers: { ...corsHeaders, ...createRateLimitHeaders(rateLimit) }
+      }
     );
   }
   
   try {
-    // Check for sync API key OR admin authentication
-    const apiKey = request.headers.get('x-sync-api-key');
-    let isAuthorized = false;
-    
-    // Use timing-safe comparison to prevent timing attacks
-    if (apiKey && SYNC_API_KEY && timingSafeCompare(apiKey, SYNC_API_KEY)) {
-      isAuthorized = true;
-    } else {
-      const auth = await checkAdminAuth();
-      isAuthorized = auth.authenticated;
-    }
-    
-    if (!isAuthorized) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Valid X-Sync-API-Key header or admin authentication required.' },
-        { status: 401, headers: corsHeaders }
-      );
-    }
-    
     const body = await request.json();
     
     if (!body.crowdsourcedDeals || typeof body.crowdsourcedDeals !== 'object') {

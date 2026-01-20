@@ -2520,79 +2520,102 @@
         
         console.log('[DealStackr] Syncing', offersToSync.length, 'offers...');
         
-        if (offersToSync.length === 0) {
-          throw new Error('No offers to sync');
-        }
-        
-        // Get user's API key from storage
+        // Get user's API key from storage (optional - only needed for offer sync)
         const { userApiKey } = await chrome.storage.local.get(['userApiKey']);
         
-        if (!userApiKey) {
-          alert('⚠️ Please set your API key in extension settings (click extension icon)');
-          return;
-        }
+        let offersSynced = 0;
+        let crowdsourcedCount = 0;
+        let offersSkipped = false;
         
-        const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-sync-api-key': userApiKey
-          },
-          body: JSON.stringify({ offers: offersToSync })
-        });
-        
-        console.log('[DealStackr] Response status:', response.status);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('[DealStackr] Response:', result);
-        
-        if (result.success) {
-          // Also sync crowdsourced data
-          let crowdsourcedCount = 0;
-          try {
-            if (chrome?.storage?.local) {
-              const crowdsourcedResult = await new Promise(resolve => {
-                chrome.storage.local.get(['crowdsourcedDeals'], items => {
-                  resolve(items);
-                });
+        // STEP 1: Always sync crowdsourced reports (no API key needed)
+        try {
+          if (chrome?.storage?.local) {
+            const crowdsourcedResult = await new Promise(resolve => {
+              chrome.storage.local.get(['crowdsourcedDeals'], items => {
+                resolve(items);
+              });
+            });
+            
+            if (crowdsourcedResult.crowdsourcedDeals && Object.keys(crowdsourcedResult.crowdsourcedDeals).length > 0) {
+              console.log('[DealStackr] Syncing crowdsourced reports (public, no API key)...');
+              const crowdsourcedResponse = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ crowdsourcedDeals: crowdsourcedResult.crowdsourcedDeals })
               });
               
-              if (crowdsourcedResult.crowdsourcedDeals && Object.keys(crowdsourcedResult.crowdsourcedDeals).length > 0) {
-                // Use the same API key
-                const crowdsourcedResponse = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
-                  method: 'POST',
-                  headers: { 
-                    'Content-Type': 'application/json',
-                    'x-sync-api-key': userApiKey
-                  },
-                  body: JSON.stringify({ crowdsourcedDeals: crowdsourcedResult.crowdsourcedDeals })
-                });
-                
-                if (crowdsourcedResponse.ok) {
-                  const crowdsourcedData = await crowdsourcedResponse.json();
-                  crowdsourcedCount = crowdsourcedData.totalDomains || 0;
-                  console.log('[DealStackr] Crowdsourced data synced:', crowdsourcedCount, 'domains');
-                }
+              if (crowdsourcedResponse.ok) {
+                const crowdsourcedData = await crowdsourcedResponse.json();
+                crowdsourcedCount = crowdsourcedData.totalDomains || Object.keys(crowdsourcedResult.crowdsourcedDeals).length;
+                console.log('[DealStackr] Crowdsourced data synced:', crowdsourcedCount, 'domains');
               }
             }
-          } catch (csError) {
-            console.warn('[DealStackr] Failed to sync crowdsourced data:', csError);
           }
-          
-          if (syncStatus) {
-            const statusText = crowdsourcedCount > 0 
-              ? `✓ ${result.count} offers + ${crowdsourcedCount} user reports synced`
-              : `✓ ${result.count} offers synced`;
-            syncStatus.textContent = statusText;
-            syncStatus.className = 'sync-status success';
+        } catch (csError) {
+          console.warn('[DealStackr] Failed to sync crowdsourced data:', csError);
+        }
+        
+        // STEP 2: Sync offers (requires API key - admin only)
+        if (offersToSync.length > 0) {
+          if (!userApiKey) {
+            console.log('[DealStackr] No API key - skipping offer sync (admin only)');
+            offersSkipped = true;
+          } else {
+            const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'x-sync-api-key': userApiKey
+              },
+              body: JSON.stringify({ offers: offersToSync })
+            });
+            
+            console.log('[DealStackr] Response status:', response.status);
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('[DealStackr] Response:', result);
+              if (result.success) {
+                offersSynced = result.count || offersToSync.length;
+              }
+            } else {
+              console.warn('[DealStackr] Offer sync failed:', response.status);
+            }
           }
-          alert(`Successfully synced ${result.count} offers${crowdsourcedCount > 0 ? ` and ${crowdsourcedCount} user reports` : ''} to the website!`);
+        }
+        
+        // Show success message
+        if (syncStatus) {
+          let statusText = '';
+          if (offersSynced > 0 && crowdsourcedCount > 0) {
+            statusText = `✓ ${offersSynced} offers + ${crowdsourcedCount} user reports synced`;
+          } else if (offersSynced > 0) {
+            statusText = `✓ ${offersSynced} offers synced`;
+          } else if (crowdsourcedCount > 0) {
+            statusText = `✓ ${crowdsourcedCount} user reports synced`;
+          } else {
+            statusText = '✓ Sync complete';
+          }
+          syncStatus.textContent = statusText;
+          syncStatus.className = 'sync-status success';
+        }
+        
+        // Build alert message
+        let alertMsg = '';
+        if (offersSynced > 0) {
+          alertMsg += `${offersSynced} offers`;
+        }
+        if (crowdsourcedCount > 0) {
+          alertMsg += (alertMsg ? ' and ' : '') + `${crowdsourcedCount} user reports`;
+        }
+        if (offersSkipped && offersToSync.length > 0) {
+          alertMsg += (alertMsg ? '\n\n' : '') + `ℹ️ ${offersToSync.length} offers were NOT synced (admin API key required).\nUser reports were synced successfully!`;
+        }
+        
+        if (alertMsg) {
+          alert(`Successfully synced ${alertMsg} to the website!`);
         } else {
-          throw new Error(result.message || 'Sync failed');
+          alert('Nothing to sync. Log some deals first!');
         }
       } catch (error) {
         console.error('[DealStackr] Sync error:', error);
