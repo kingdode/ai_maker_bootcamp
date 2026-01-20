@@ -1488,10 +1488,36 @@
   /**
    * Check if there are any deals or reports for this merchant
    * Only show widget if there's actual data
+   * Checks both local storage AND remote API
    */
   async function hasDealDataForMerchant() {
     const currentDomain = getDomain();
+    const currentHostname = window.location.hostname.toLowerCase();
     
+    console.log('[DealStackr] Checking for deal data on:', currentDomain, '(hostname:', currentHostname + ')');
+    
+    try {
+      // First check local storage (faster)
+      const localResult = await checkLocalStorage(currentDomain, currentHostname);
+      if (localResult) {
+        return true;
+      }
+      
+      // Fallback: Check remote API for deals
+      console.log('[DealStackr] No local data, checking remote API...');
+      const remoteResult = await checkRemoteApi(currentDomain, currentHostname);
+      return remoteResult;
+      
+    } catch (error) {
+      console.log('[DealStackr] Error checking deal data:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Check Chrome's local storage for deals
+   */
+  async function checkLocalStorage(currentDomain, currentHostname) {
     try {
       const result = await new Promise((resolve, reject) => {
         if (!chrome?.storage?.local) {
@@ -1505,6 +1531,15 @@
             resolve(items);
           }
         });
+      });
+      
+      // Debug: Log what we found in storage
+      console.log('[DealStackr] Local storage contents:', {
+        hasDealCohorts: !!result.dealCohorts,
+        hasAllDeals: !!result.allDeals,
+        allDealsCount: Array.isArray(result.allDeals) ? result.allDeals.length : 0,
+        hasCrowdsourced: !!result.crowdsourcedDeals,
+        crowdsourcedDomains: Object.keys(result.crowdsourcedDeals || {})
       });
       
       // Check crowdsourced data first
@@ -1527,19 +1562,74 @@
         allOffers = allOffers.concat(result.allDeals);
       }
       
+      console.log('[DealStackr] Total offers in local storage:', allOffers.length);
+      
+      // Debug: Log first few merchant names to see format
       if (allOffers.length > 0) {
-        const currentHostname = window.location.hostname.toLowerCase();
+        const sampleMerchants = allOffers.slice(0, 5).map(o => o.merchant_name || o.merchant);
+        console.log('[DealStackr] Sample merchants in storage:', sampleMerchants);
+        
         const matchingOffers = findMatchingOffers(allOffers, currentDomain, currentHostname);
         if (matchingOffers.length > 0) {
-          console.log('[DealStackr] Found', matchingOffers.length, 'matching offers for', currentDomain);
+          console.log('[DealStackr] Found', matchingOffers.length, 'matching offers locally for', currentDomain);
           return true;
         }
       }
       
-      console.log('[DealStackr] No deal data found for', currentDomain);
+      console.log('[DealStackr] No deal data found locally for', currentDomain);
       return false;
     } catch (error) {
-      console.log('[DealStackr] Error checking deal data:', error);
+      console.log('[DealStackr] Error checking local storage:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * Check remote API for deals (fallback when local storage is empty)
+   */
+  async function checkRemoteApi(currentDomain, currentHostname) {
+    try {
+      // Use the production API URL
+      const API_URL = 'https://dealstackr-dashboard.up.railway.app/api/offers';
+      
+      const response = await fetch(API_URL, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (!response.ok) {
+        console.log('[DealStackr] API request failed:', response.status);
+        return false;
+      }
+      
+      const data = await response.json();
+      const offers = data.offers || data || [];
+      
+      console.log('[DealStackr] Remote API returned', offers.length, 'offers');
+      
+      if (offers.length > 0) {
+        // Cache the offers locally for faster future checks
+        try {
+          chrome.storage.local.set({ 'allDeals': offers });
+          console.log('[DealStackr] Cached', offers.length, 'offers locally');
+        } catch (e) {
+          // Ignore cache errors
+        }
+        
+        const matchingOffers = findMatchingOffers(offers, currentDomain, currentHostname);
+        if (matchingOffers.length > 0) {
+          console.log('[DealStackr] Found', matchingOffers.length, 'matching offers from API for', currentDomain);
+          return true;
+        }
+      }
+      
+      console.log('[DealStackr] No matching deals found in API for', currentDomain);
+      return false;
+    } catch (error) {
+      console.log('[DealStackr] Error fetching from API:', error);
+      return false;
+    }
+  }
       // On error, don't show widget to avoid annoying users
       return false;
     }

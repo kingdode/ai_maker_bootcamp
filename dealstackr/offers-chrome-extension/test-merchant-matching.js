@@ -18,6 +18,9 @@ const testOffers = [
   { merchant_name: 'The Container Store', offer_value: '$15 back' },
   { merchant_name: 'Target', offer_value: '$10 back' },
   { merchant_name: 'Smackage Burgers', offer_value: '$5 back' }, // Should NOT match "mackage"
+  { merchant_name: 'Best Buy', offer_value: '$40 back' }, // Two-word brand that combines in domain
+  { merchant_name: 'Home Depot', offer_value: '$35 back' }, // Another two-word brand
+  { merchant_name: 'Whole Foods', offer_value: '$25 back' }, // Two-word brand
 ];
 
 // Copy the matching function from signupDetector.js
@@ -212,6 +215,27 @@ const testCases = [
     domain: 'shop.com',
     hostname: 'shop.com',
     expectedMatches: [],
+    expectedNonMatches: []
+  },
+  {
+    name: 'Best Buy on bestbuy.com (compound domain)',
+    domain: 'bestbuy.com',
+    hostname: 'bestbuy.com',
+    expectedMatches: ['Best Buy'],
+    expectedNonMatches: []
+  },
+  {
+    name: 'Home Depot on homedepot.com',
+    domain: 'homedepot.com',
+    hostname: 'homedepot.com',
+    expectedMatches: ['Home Depot'],
+    expectedNonMatches: []
+  },
+  {
+    name: 'Whole Foods on wholefoods.com',
+    domain: 'wholefoods.com',
+    hostname: 'wholefoods.com',
+    expectedMatches: ['Whole Foods'],
     expectedNonMatches: []
   }
 ];
