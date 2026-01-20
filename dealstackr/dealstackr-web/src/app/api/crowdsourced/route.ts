@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CrowdsourcedReport } from '@/lib/types';
 import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
+import { CrowdsourcedDealsSchema, validateInput, ValidationError, validateApiKey } from '@/lib/validation';
+import { getCorsHeaders, getPreflightHeaders } from '@/lib/cors';
 import fs from 'fs';
 import path from 'path';
 
@@ -8,8 +10,24 @@ import path from 'path';
 const DATA_DIR = path.join(process.cwd(), '.data');
 const CROWDSOURCED_FILE = path.join(DATA_DIR, 'crowdsourced.json');
 
-// Simple API key for Chrome extension sync (not a secret, just prevents random abuse)
-const SYNC_API_KEY = process.env.SYNC_API_KEY || 'dealstackr-sync-2024';
+// API key for Chrome extension sync
+// IMPORTANT: Must match SYNC_API_KEY from offers route
+const SYNC_API_KEY = process.env.SYNC_API_KEY;
+
+// Validate API key at runtime
+function checkApiKeyAtRuntime() {
+  if (!SYNC_API_KEY || !validateApiKey(SYNC_API_KEY)) {
+    console.error('[SECURITY] SYNC_API_KEY is not set or is insecure!');
+    return false;
+  }
+  return true;
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const headers = getPreflightHeaders(origin);
+  return NextResponse.json({}, { headers });
+}
 
 // Ensure data directory exists
 function ensureDataDir() {
@@ -49,91 +67,134 @@ function getCrowdsourcedCache(): Record<string, CrowdsourcedReport> {
 }
 
 // GET - Public (anyone can view crowdsourced data)
-export async function GET() {
-  const data = getCrowdsourcedCache();
+export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   
-  // Convert to array and sort by report count
-  const reports = Object.values(data).sort((a, b) => 
-    (b.totalReports || 0) - (a.totalReports || 0)
-  );
-  
-  return NextResponse.json({
-    success: true,
-    reports,
-    totalDomains: reports.length,
-    totalReports: reports.reduce((sum, r) => sum + (r.totalReports || 0), 0)
-  });
+  try {
+    const data = getCrowdsourcedCache();
+    
+    // Convert to array and sort by report count
+    const reports = Object.values(data).sort((a, b) => 
+      (b.totalReports || 0) - (a.totalReports || 0)
+    );
+    
+    return NextResponse.json({
+      success: true,
+      reports,
+      totalDomains: reports.length,
+      totalReports: reports.reduce((sum, r) => sum + (r.totalReports || 0), 0)
+    }, { headers: corsHeaders });
+  } catch (error) {
+    console.error('[API] Error in GET /api/crowdsourced:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch crowdsourced data' },
+      { status: 500, headers: corsHeaders }
+    );
+  }
 }
 
 // POST - Protected with simple API key (for Chrome extension sync)
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
+  // Runtime API key validation
+  if (!checkApiKeyAtRuntime()) {
+    return NextResponse.json(
+      { error: 'Server configuration error. Please contact administrator.' },
+      { status: 503, headers: corsHeaders }
+    );
+  }
+  
   try {
-    // Check for sync API key (simple protection against random abuse)
+    // Check for sync API key OR admin authentication
     const apiKey = request.headers.get('x-sync-api-key');
-    if (apiKey !== SYNC_API_KEY) {
-      // Also allow if user is authenticated as admin
+    let isAuthorized = false;
+    
+    if (apiKey === SYNC_API_KEY && SYNC_API_KEY) {
+      isAuthorized = true;
+    } else {
       const auth = await checkAdminAuth();
-      if (!auth.authenticated) {
-        return NextResponse.json(
-          { error: 'Invalid sync key' },
-          { status: 401 }
-        );
-      }
+      isAuthorized = auth.authenticated;
+    }
+    
+    if (!isAuthorized) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Valid X-Sync-API-Key header or admin authentication required.' },
+        { status: 401, headers: corsHeaders }
+      );
     }
     
     const body = await request.json();
     
     if (!body.crowdsourcedDeals || typeof body.crowdsourcedDeals !== 'object') {
       return NextResponse.json(
-        { error: 'Invalid crowdsourced data format' },
-        { status: 400 }
+        { error: 'Invalid crowdsourced data format. Expected { crowdsourcedDeals: {...} }' },
+        { status: 400, headers: corsHeaders }
       );
     }
     
-    // Merge with existing data
-    const existing = getCrowdsourcedCache();
-    const incoming = body.crowdsourcedDeals as Record<string, CrowdsourcedReport>;
-    
-    for (const [domain, report] of Object.entries(incoming)) {
-      if (existing[domain]) {
-        // Merge reports, keeping most recent
-        const existingReports = existing[domain].reports || [];
-        const newReports = report.reports || [];
-        
-        // Combine and dedupe by reportedAt timestamp
-        const allReports = [...newReports, ...existingReports];
-        const seen = new Set<string>();
-        const dedupedReports = allReports.filter(r => {
-          const key = `${r.reportedAt}-${r.type}-${r.rate || r.fixedAmount}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        }).slice(0, 50); // Keep max 50 reports per domain
-        
-        existing[domain] = {
-          ...existing[domain],
-          ...report,
-          reports: dedupedReports,
-          totalReports: Math.max(existing[domain].totalReports || 0, report.totalReports || dedupedReports.length)
-        };
-      } else {
-        existing[domain] = report;
+    // Validate crowdsourced deals
+    try {
+      const validatedDeals = validateInput(CrowdsourcedDealsSchema, body.crowdsourcedDeals);
+      
+      // Merge with existing data
+      const existing = getCrowdsourcedCache();
+      
+      for (const [domain, report] of Object.entries(validatedDeals)) {
+        if (existing[domain]) {
+          // Merge reports, keeping most recent
+          const existingReports = existing[domain].reports || [];
+          const newReports = report.reports || [];
+          
+          // Combine and dedupe by reportedAt timestamp
+          const allReports = [...newReports, ...existingReports];
+          const seen = new Set<string>();
+          const dedupedReports = allReports.filter(r => {
+            const key = `${r.reportedAt}-${r.type}-${r.rate || r.fixedAmount}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }).slice(0, 50); // Keep max 50 reports per domain
+          
+          existing[domain] = {
+            ...existing[domain],
+            ...report,
+            reports: dedupedReports,
+            totalReports: Math.max(existing[domain].totalReports || 0, report.totalReports || dedupedReports.length)
+          };
+        } else {
+          existing[domain] = report;
+        }
       }
+      
+      crowdsourcedCache = existing;
+      saveCrowdsourcedData(existing);
+      
+      return NextResponse.json({
+        success: true,
+        message: `Synced ${Object.keys(validatedDeals).length} domains`,
+        totalDomains: Object.keys(existing).length
+      }, { headers: corsHeaders });
+      
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return NextResponse.json(
+          {
+            error: 'Validation failed',
+            details: error.errors
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      throw error;
     }
-    
-    crowdsourcedCache = existing;
-    saveCrowdsourcedData(existing);
-    
-    return NextResponse.json({
-      success: true,
-      message: `Synced ${Object.keys(incoming).length} domains`,
-      totalDomains: Object.keys(existing).length
-    });
   } catch (error) {
-    console.error('Error syncing crowdsourced data:', error);
+    console.error('[API] Error in POST /api/crowdsourced:', error);
     return NextResponse.json(
       { error: 'Failed to sync crowdsourced data' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

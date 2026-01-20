@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
+import { ArticleRequestSchema, validateInput, ValidationError } from '@/lib/validation';
 
 interface ArticleRequest {
   merchant: string;
@@ -23,16 +24,35 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: ArticleRequest = await request.json();
-    const { merchant, offerValue, issuer, cardName, minSpend, maxRedemption, expiresAt, cashback, promoCode, dealScore, stackType } = body;
+    const body = await request.json();
+    
+    // Validate request body
+    let validatedRequest: ArticleRequest;
+    try {
+      validatedRequest = validateInput(ArticleRequestSchema, body);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return NextResponse.json(
+          {
+            error: 'Validation failed',
+            details: error.errors
+          },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    const { merchant, offerValue, issuer, cardName, minSpend, maxRedemption, expiresAt, cashback, promoCode, dealScore, stackType } = validatedRequest;
 
     // Get OpenAI API key from environment variable ONLY (secure)
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
+      console.error('[SECURITY] OpenAI API key not configured');
       return NextResponse.json(
-        { error: 'OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.' },
-        { status: 400 }
+        { error: 'AI article generation is not available at this time.' },
+        { status: 503 } // Service Unavailable
       );
     }
 
@@ -76,16 +96,31 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
+      // Log error internally but don't expose details to client
       const errorData = await response.json().catch(() => ({}));
-      console.error('OpenAI API error:', errorData);
+      console.error('[API] OpenAI API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData.error?.type,
+        // Don't log full error message as it may contain sensitive info
+      });
+      
       return NextResponse.json(
-        { error: `OpenAI API error: ${errorData.error?.message || response.statusText}` },
-        { status: response.status }
+        { error: 'Failed to generate article content. Please try again later.' },
+        { status: 500 }
       );
     }
 
     const data = await response.json();
     const articleContent = data.choices[0]?.message?.content || '';
+
+    if (!articleContent) {
+      console.error('[API] OpenAI returned empty content');
+      return NextResponse.json(
+        { error: 'Generated content was empty. Please try again.' },
+        { status: 500 }
+      );
+    }
 
     // Parse the article into structured format
     const parsedArticle = parseArticleContent(articleContent);
@@ -96,7 +131,11 @@ export async function POST(request: NextRequest) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const imageResponse = await fetch(`${baseUrl}/api/openai/fetch-images`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          // Forward authentication
+          'Cookie': request.headers.get('cookie') || ''
+        },
         body: JSON.stringify({ merchant })
       });
       
@@ -105,7 +144,8 @@ export async function POST(request: NextRequest) {
         merchantImages = imageData.images || [];
       }
     } catch (imageError) {
-      console.error('Error fetching images:', imageError);
+      console.error('[API] Error fetching images:', imageError);
+      // Continue without images - not critical
     }
 
     return NextResponse.json({
@@ -116,9 +156,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error generating article:', error);
+    console.error('[API] Error generating article:', error);
     return NextResponse.json(
-      { error: 'Failed to generate article. Please check the server logs.' },
+      { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }
     );
   }

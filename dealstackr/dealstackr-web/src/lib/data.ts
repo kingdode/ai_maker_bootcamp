@@ -1,217 +1,133 @@
-import { Offer, FeaturedDeal, DashboardStats } from './types';
-import { calculateDealScore } from './offerScoring';
-import fs from 'fs';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
+import { Offer, FeaturedDeal, DashboardStats, CrowdsourcedReport } from './types';
+import { calculateDealScore, parseOfferValue } from './offerScoring';
 
-// File-based storage for persistence
-const DATA_DIR = path.join(process.cwd(), '.data');
-const OFFERS_FILE = path.join(DATA_DIR, 'offers.json');
-const FEATURED_FILE = path.join(DATA_DIR, 'featured.json');
+// Initialize Supabase client with service role for server-side operations
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Ensure data directory exists
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Load offers from file
-function loadOffers(): Offer[] {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(OFFERS_FILE)) {
-      const data = fs.readFileSync(OFFERS_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error loading offers:', error);
-  }
-  return [];
-}
+// ============================================================================
+// OFFERS
+// ============================================================================
 
-// Save offers to file
-function saveOffers(offers: Offer[]) {
-  ensureDataDir();
-  fs.writeFileSync(OFFERS_FILE, JSON.stringify(offers, null, 2));
-}
-
-// Load featured deals from file
-function loadFeaturedDeals(): FeaturedDeal[] {
-  ensureDataDir();
-  try {
-    if (fs.existsSync(FEATURED_FILE)) {
-      const data = fs.readFileSync(FEATURED_FILE, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error loading featured deals:', error);
-  }
-  return [];
-}
-
-// Save featured deals to file
-function saveFeaturedDeals(deals: FeaturedDeal[]) {
-  ensureDataDir();
-  fs.writeFileSync(FEATURED_FILE, JSON.stringify(deals, null, 2));
-}
-
-// In-memory cache
-let offersCache: Offer[] | null = null;
-let featuredCache: FeaturedDeal[] | null = null;
-
-function getOffersCache(): Offer[] {
-  // Always read fresh data from file to avoid stale cache between workers
-  offersCache = loadOffers();
-  return offersCache;
-}
-
-function getFeaturedCache(): FeaturedDeal[] {
-  // Always read fresh data from file to avoid stale cache between workers
-  featuredCache = loadFeaturedDeals();
-  return featuredCache;
-}
-
-// Featured Deals functions
-export function getFeaturedDeals(): FeaturedDeal[] {
-  return getFeaturedCache().filter(d => d.active).sort((a, b) => a.priority - b.priority);
-}
-
-export function getAllFeaturedDeals(): FeaturedDeal[] {
-  return [...getFeaturedCache()].sort((a, b) => a.priority - b.priority);
-}
-
-export function getFeaturedDealById(id: string): FeaturedDeal | undefined {
-  return getFeaturedCache().find(d => d.id === id);
-}
-
-export function createFeaturedDeal(deal: Omit<FeaturedDeal, 'id' | 'createdAt' | 'updatedAt'>): FeaturedDeal {
-  const deals = getFeaturedCache();
-  const newDeal: FeaturedDeal = {
-    ...deal,
-    id: Date.now().toString(),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  deals.push(newDeal);
-  featuredCache = deals;
-  saveFeaturedDeals(deals);
-  return newDeal;
-}
-
-export function updateFeaturedDeal(id: string, updates: Partial<FeaturedDeal>): FeaturedDeal | null {
-  const deals = getFeaturedCache();
-  const index = deals.findIndex(d => d.id === id);
-  if (index === -1) return null;
-  
-  deals[index] = {
-    ...deals[index],
-    ...updates,
-    updatedAt: new Date().toISOString()
-  };
-  featuredCache = deals;
-  saveFeaturedDeals(deals);
-  return deals[index];
-}
-
-export function deleteFeaturedDeal(id: string): boolean {
-  const deals = getFeaturedCache();
-  const index = deals.findIndex(d => d.id === id);
-  if (index === -1) return false;
-  
-  deals.splice(index, 1);
-  featuredCache = deals;
-  saveFeaturedDeals(deals);
-  return true;
-}
-
-// Helper to normalize issuer for comparison (case-insensitive)
-function normalizeIssuer(issuer: string | undefined): 'Chase' | 'Amex' | 'Unknown' {
-  if (!issuer) return 'Unknown';
-  const lower = issuer.toLowerCase();
-  if (lower === 'chase') return 'Chase';
-  if (lower === 'amex' || lower === 'american express') return 'Amex';
-  return 'Unknown';
-}
-
-// Offers functions
 export function getOffers(): Offer[] {
-  // Ensure all offers have deal scores, normalize issuer, then sort by score (highest first)
-  return [...getOffersCache()]
-    // Data quality filter: Amex offers must have expiration dates
-    .filter(offer => {
-      if (normalizeIssuer(offer.issuer) === 'Amex') {
-        if (!offer.expires_at) {
-          // Amex offers require expiration date
-          return false;
-        }
-      }
-      return true;
-    })
-    .map(offer => ({
-      ...offer,
-      issuer: normalizeIssuer(offer.issuer), // Normalize issuer case
-      deal_score: offer.deal_score ?? calculateDealScore(offer.offer_value)
-    }))
-    .sort((a, b) => (b.deal_score?.finalScore ?? 0) - (a.deal_score?.finalScore ?? 0));
+  // This is now async, but keeping sync for compatibility
+  // Will be called with await in API routes
+  throw new Error('Use async version: getOffersAsync()');
 }
 
-export function getOffersByIssuer(issuer: 'Chase' | 'Amex'): Offer[] {
-  return getOffersCache().filter(o => normalizeIssuer(o.issuer) === issuer);
+export async function getOffersAsync(): Promise<Offer[]> {
+  const { data, error } = await supabase
+    .from('offers')
+    .select('*')
+    .order('scanned_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching offers:', error);
+    return [];
+  }
+  
+  return data as Offer[];
 }
 
-export function getOfferById(id: string): Offer | undefined {
-  return getOffersCache().find(o => o.id === id);
+export async function getOffersByIssuer(issuer: string): Promise<Offer[]> {
+  const normalizedIssuer = issuer.toLowerCase() === 'amex' ? 'Amex' : 
+                           issuer.toLowerCase() === 'chase' ? 'Chase' : 'Unknown';
+  
+  const { data, error } = await supabase
+    .from('offers')
+    .select('*')
+    .eq('issuer', normalizedIssuer)
+    .order('scanned_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching offers by issuer:', error);
+    return [];
+  }
+  
+  return data as Offer[];
 }
 
-export function getStackableOffers(): Offer[] {
-  return getOffersCache().filter(o => o.stackable);
+export async function getStackableOffers(): Promise<Offer[]> {
+  const { data, error } = await supabase
+    .from('offers')
+    .select('*')
+    .eq('stackable', true)
+    .order('scanned_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching stackable offers:', error);
+    return [];
+  }
+  
+  return data as Offer[];
 }
 
-export function getStats(): DashboardStats {
-  const offers = getOffersCache();
+export async function getStats(): Promise<DashboardStats> {
+  const [allOffers, amexOffers, chaseOffers, stackableOffers] = await Promise.all([
+    supabase.from('offers').select('id', { count: 'exact', head: true }),
+    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('issuer', 'Amex'),
+    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('issuer', 'Chase'),
+    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('stackable', true)
+  ]);
+  
   return {
-    totalOffers: offers.length,
-    chaseOffers: offers.filter(o => normalizeIssuer(o.issuer) === 'Chase').length,
-    amexOffers: offers.filter(o => normalizeIssuer(o.issuer) === 'Amex').length,
-    stackableOffers: offers.filter(o => o.stackable).length,
-    lastUpdated: new Date().toISOString()
+    totalOffers: allOffers.count || 0,
+    byIssuer: {
+      amex: amexOffers.count || 0,
+      chase: chaseOffers.count || 0
+    },
+    stackable: stackableOffers.count || 0
   };
 }
 
-// Sync offers from Chrome extension
-export function syncOffers(newOffers: Offer[]): { success: boolean; count: number; message: string } {
+export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean; count: number; message: string }> {
   try {
-    // Data quality filter: Amex offers must have expiration dates
+    // Data quality filter
     const qualityFiltered = newOffers.filter(offer => {
       if (offer.issuer?.toLowerCase() === 'amex') {
-        if (!offer.expires_at) {
-          // Amex offers require expiration date
-          return false;
-        }
+        if (!offer.expires_at) return false;
       }
       return true;
     });
 
-    // Deduplicate by merchant + offer_value + issuer
+    // Deduplicate
     const seen = new Map<string, Offer>();
     for (const offer of qualityFiltered) {
       const key = `${offer.merchant}|${offer.offer_value}|${offer.issuer}|${offer.card_name}`;
       const existing = seen.get(key);
       if (!existing || new Date(offer.scanned_at) > new Date(existing.scanned_at)) {
-        // Calculate DealStackr Score if not present
         const deal_score = offer.deal_score ?? calculateDealScore(offer.offer_value);
-        
+        const parsedValue = parseOfferValue(offer.offer_value);
+
         seen.set(key, {
           ...offer,
           id: offer.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          deal_score
+          deal_score,
+          estimated_value: parsedValue.estimatedValue,
+          points_program: parsedValue.pointsProgram,
+          points_amount: parsedValue.pointsAmount
         });
       }
     }
     
     const deduped = Array.from(seen.values());
-    offersCache = deduped;
-    saveOffers(deduped);
+    
+    // Upsert to database
+    const { error } = await supabase
+      .from('offers')
+      .upsert(deduped, { onConflict: 'id' });
+    
+    if (error) {
+      console.error('Error syncing offers:', error);
+      return {
+        success: false,
+        count: 0,
+        message: `Error: ${error.message}`
+      };
+    }
     
     return {
       success: true,
@@ -228,26 +144,137 @@ export function syncOffers(newOffers: Offer[]): { success: boolean; count: numbe
   }
 }
 
-// Clear all offers
-export function clearOffers(): void {
-  offersCache = [];
-  saveOffers([]);
+export async function clearOffers(): Promise<void> {
+  await supabase.from('offers').delete().neq('id', '');
 }
 
-// Get last sync info
-export function getLastSyncInfo(): { lastSync: string | null; offerCount: number } {
-  const offers = getOffersCache();
-  if (offers.length === 0) {
-    return { lastSync: null, offerCount: 0 };
-  }
-  
-  const mostRecent = offers.reduce((latest, offer) => {
-    const offerDate = new Date(offer.scanned_at);
-    return offerDate > latest ? offerDate : latest;
-  }, new Date(0));
+export async function getLastSyncInfo(): Promise<{ lastSync: string | null; totalOffers: number }> {
+  const [lastOffer, count] = await Promise.all([
+    supabase.from('offers').select('scanned_at').order('scanned_at', { ascending: false }).limit(1).single(),
+    supabase.from('offers').select('id', { count: 'exact', head: true })
+  ]);
   
   return {
-    lastSync: mostRecent.toISOString(),
-    offerCount: offers.length
+    lastSync: lastOffer.data?.scanned_at || null,
+    totalOffers: count.count || 0
   };
+}
+
+// ============================================================================
+// FEATURED DEALS
+// ============================================================================
+
+export async function getFeaturedDeals(): Promise<FeaturedDeal[]> {
+  const { data, error } = await supabase
+    .from('featured_deals')
+    .select('*')
+    .eq('active', true)
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching featured deals:', error);
+    return [];
+  }
+  
+  return data as FeaturedDeal[];
+}
+
+export async function getAllFeaturedDeals(): Promise<FeaturedDeal[]> {
+  const { data, error } = await supabase
+    .from('featured_deals')
+    .select('*')
+    .order('active', { ascending: false })
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching all featured deals:', error);
+    return [];
+  }
+  
+  return data as FeaturedDeal[];
+}
+
+export async function getFeaturedDealById(id: string): Promise<FeaturedDeal | null> {
+  const { data, error } = await supabase
+    .from('featured_deals')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching featured deal:', error);
+    return null;
+  }
+  
+  return data as FeaturedDeal;
+}
+
+export async function createFeaturedDeal(deal: Omit<FeaturedDeal, 'id' | 'createdAt' | 'updatedAt'>): Promise<FeaturedDeal> {
+  const { data, error } = await supabase
+    .from('featured_deals')
+    .insert([deal])
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating featured deal:', error);
+    throw error;
+  }
+  
+  return data as FeaturedDeal;
+}
+
+export async function updateFeaturedDeal(id: string, updates: Partial<FeaturedDeal>): Promise<FeaturedDeal | null> {
+  const { data, error } = await supabase
+    .from('featured_deals')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error updating featured deal:', error);
+    return null;
+  }
+  
+  return data as FeaturedDeal;
+}
+
+export async function deleteFeaturedDeal(id: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('featured_deals')
+    .delete()
+    .eq('id', id);
+  
+  return !error;
+}
+
+// ============================================================================
+// CROWDSOURCED REPORTS (keeping simple for now - can stay file-based or migrate later)
+// ============================================================================
+
+export async function getCrowdsourcedReports(): Promise<Record<string, CrowdsourcedReport>> {
+  const { data, error } = await supabase
+    .from('crowdsourced_reports')
+    .select('*');
+  
+  if (error) {
+    console.error('Error fetching crowdsourced reports:', error);
+    return {};
+  }
+  
+  const result: Record<string, CrowdsourcedReport> = {};
+  for (const report of data) {
+    result[report.domain] = report as unknown as CrowdsourcedReport;
+  }
+  
+  return result;
+}
+
+// Legacy sync functions (keeping for backward compatibility)
+export function getOffers_LEGACY() {
+  console.warn('Using legacy file-based getOffers - this should be migrated');
+  return [];
 }

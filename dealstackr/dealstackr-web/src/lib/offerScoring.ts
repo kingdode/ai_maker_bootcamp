@@ -99,7 +99,21 @@ export interface ParsedOfferValue {
   amountBack: number | null;
   percentBack: number | null;
   minSpend: number | null;
+  points?: {
+    amount: number;
+    program: string;
+    estimatedValue: number;
+  } | null;
 }
+
+// Point valuation constants (cents per point)
+export const POINT_VALUATIONS: Record<string, number> = {
+  'membership rewards': 1.5,    // Amex MR
+  'ultimate rewards': 1.5,      // Chase UR
+  'thankyou points': 1.0,       // Citi TYP
+  'venture miles': 1.0,         // Capital One
+  'default': 1.0                // Generic points
+};
 
 /**
  * Parse offer value string into structured components.
@@ -108,12 +122,15 @@ export interface ParsedOfferValue {
  * - "20% back"
  * - "$10 back"
  * - "10% cash back on $100 minimum"
+ * - "5,000 Membership Rewards points" (NEW)
+ * - "Earn 10,000 points" (NEW)
  */
 export function parseOfferValue(offerValue: string): ParsedOfferValue {
   const result: ParsedOfferValue = {
     amountBack: null,
     percentBack: null,
-    minSpend: null
+    minSpend: null,
+    points: null
   };
 
   if (!offerValue || typeof offerValue !== 'string') {
@@ -122,10 +139,65 @@ export function parseOfferValue(offerValue: string): ParsedOfferValue {
 
   const text = offerValue.toLowerCase();
 
-  // Extract dollar amount back: "$50 back", "$50", "earn $50"
-  const dollarMatch = text.match(/\$(\d+(?:\.\d{2})?)\s*(?:back|off|credit)?/);
-  if (dollarMatch) {
-    result.amountBack = parseFloat(dollarMatch[1]);
+  // Check for point-based rewards FIRST (before dollar extraction)
+  // Patterns: "5,000 points", "5000 membership rewards points", "earn 10,000 points"
+  const pointsPatterns = [
+    /(?:earn\s+)?(\d+(?:,\d+)*)\s+(membership\s+rewards?®?|ultimate\s+rewards?®?|thankyou®?|venture\s+miles?)\s+points?/i,
+    /earn\s+(\d+(?:,\d+)*)\s+points?/i,
+    /(\d+(?:,\d+)*)\s+points?\s*(?:back)?/i
+  ];
+
+  for (const pattern of pointsPatterns) {
+    const match = offerValue.match(pattern);
+    if (match) {
+      const pointAmount = parseInt(match[1].replace(/,/g, ''));
+      
+      // Skip if this looks like a dollar amount (e.g., "$350 or more")
+      if (pointAmount < 100) continue;
+      
+      const programMatch = match[2] ? match[2].toLowerCase() : 'default';
+      
+      // Determine program name and valuation
+      let program = 'Points';
+      let valueCentsPerPoint = POINT_VALUATIONS['default'];
+      
+      if (programMatch.includes('membership rewards')) {
+        program = 'Membership Rewards';
+        valueCentsPerPoint = POINT_VALUATIONS['membership rewards'];
+      } else if (programMatch.includes('ultimate rewards')) {
+        program = 'Ultimate Rewards';
+        valueCentsPerPoint = POINT_VALUATIONS['ultimate rewards'];
+      } else if (programMatch.includes('thankyou')) {
+        program = 'ThankYou Points';
+        valueCentsPerPoint = POINT_VALUATIONS['thankyou points'];
+      } else if (programMatch.includes('venture')) {
+        program = 'Venture Miles';
+        valueCentsPerPoint = POINT_VALUATIONS['venture miles'];
+      }
+      
+      const estimatedValue = (pointAmount * valueCentsPerPoint) / 100;
+      
+      result.points = {
+        amount: pointAmount,
+        program,
+        estimatedValue
+      };
+      
+      // Set amountBack to estimated value for scoring purposes
+      result.amountBack = estimatedValue;
+      
+      break;
+    }
+  }
+
+  // Only extract dollar amount if we didn't find points
+  if (!result.points) {
+
+    // Extract dollar amount back: "$50 back", "$50", "earn $50"
+    const dollarMatch = text.match(/\$(\d+(?:\.\d{2})?)\s*(?:back|off|credit)?/);
+    if (dollarMatch) {
+      result.amountBack = parseFloat(dollarMatch[1]);
+    }
   }
 
   // Extract percentage: "20%", "20% back", "20% cash back"

@@ -249,9 +249,26 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                     
                     {/* Offer Cell */}
                     <td className="px-4 py-4">
-                      <span className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-sm font-medium">
-                        {offer.offer_value}
-                      </span>
+                      <div>
+                        <span className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-sm font-medium">
+                          {offer.offer_value}
+                        </span>
+                        {/* Show points breakdown if available */}
+                        {offer.points && (
+                          <div className="mt-2 text-xs">
+                            <div className="flex items-center gap-1 text-amber-400">
+                              <span>⭐</span>
+                              <span>{offer.points.amount.toLocaleString()} {offer.points.program} pts</span>
+                            </div>
+                            <div className="text-gray-500 mt-0.5">
+                              ≈ ${offer.points.estimatedValue.toFixed(2)} value 
+                              <span className="text-gray-600 ml-1">
+                                ({offer.points.valueCentsPerPoint}¢/pt)
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     
                     {/* Card Cell */}

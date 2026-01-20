@@ -1486,66 +1486,6 @@
   }
 
   /**
-   * Check if there are any deals or reports for this merchant
-   * Only show widget if there's actual data
-   */
-  async function hasDealDataForMerchant() {
-    const currentDomain = getDomain();
-    
-    try {
-      const result = await new Promise((resolve, reject) => {
-        if (!chrome?.storage?.local) {
-          reject(new Error('Chrome storage API not available'));
-          return;
-        }
-        chrome.storage.local.get(['dealCohorts', 'allDeals', 'crowdsourcedDeals'], (items) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve(items);
-          }
-        });
-      });
-      
-      // Check crowdsourced data first
-      const crowdsourcedDeals = result.crowdsourcedDeals || {};
-      if (crowdsourcedDeals[currentDomain] && crowdsourcedDeals[currentDomain].totalReports > 0) {
-        console.log('[DealStackr] Found crowdsourced data for', currentDomain);
-        return true;
-      }
-      
-      // Check for matching card offers
-      let allOffers = [];
-      if (result.dealCohorts && typeof result.dealCohorts === 'object') {
-        Object.values(result.dealCohorts).forEach(cohort => {
-          if (Array.isArray(cohort.offers)) {
-            allOffers = allOffers.concat(cohort.offers);
-          }
-        });
-      }
-      if (Array.isArray(result.allDeals)) {
-        allOffers = allOffers.concat(result.allDeals);
-      }
-      
-      if (allOffers.length > 0) {
-        const currentHostname = window.location.hostname.toLowerCase();
-        const matchingOffers = findMatchingOffers(allOffers, currentDomain, currentHostname);
-        if (matchingOffers.length > 0) {
-          console.log('[DealStackr] Found', matchingOffers.length, 'matching offers for', currentDomain);
-          return true;
-        }
-      }
-      
-      console.log('[DealStackr] No deal data found for', currentDomain);
-      return false;
-    } catch (error) {
-      console.log('[DealStackr] Error checking deal data:', error);
-      // On error, don't show widget to avoid annoying users
-      return false;
-    }
-  }
-
-  /**
    * Initialize detection
    */
   function init() {
@@ -1576,9 +1516,8 @@
       }
     }, 10000);
 
-    // Show confirmation widget only if:
-    // 1. Auto-open is triggered (came from dashboard), OR
-    // 2. There are actual deals/reports for this merchant
+    // Show confirmation widget after a delay (give popups time to appear)
+    // If auto-open is triggered (came from dashboard), show immediately and open
     if (shouldAutoOpen) {
       console.log('[DealStackr] Auto-opening widget from dashboard navigation');
       setTimeout(() => {
@@ -1593,29 +1532,19 @@
         }, 100);
       }, 1500); // Slightly faster for auto-open
     } else {
-      // Normal flow - check if merchant has deal data first
+      // Normal flow - wait longer
       setTimeout(async () => {
         console.log('[DealStackr] Checking if should show widget...');
         try {
-          // First check: Does this merchant have any deals or reports?
-          const hasDealData = await hasDealDataForMerchant();
-          
-          if (!hasDealData) {
-            console.log('[DealStackr] No deals for this merchant, not showing widget');
-            return;
-          }
-          
-          // Second check: Did user already confirm recently?
           const hasRecent = await hasRecentConfirmation();
           console.log('[DealStackr] Has recent confirmation:', hasRecent, 'User confirmed:', hasUserConfirmed);
-          
           if (!hasRecent && !hasUserConfirmed) {
             console.log('[DealStackr] Creating confirmation widget');
             createConfirmationWidget();
           }
         } catch (error) {
-          console.log('[DealStackr] Error checking, not showing widget:', error);
-          // Don't show widget on error to avoid annoying users
+          console.log('[DealStackr] Error checking confirmation, showing widget anyway:', error);
+          createConfirmationWidget();
         }
       }, 3000);
     }
@@ -1709,10 +1638,7 @@
   
   /**
    * Find offers that match the current domain/hostname
-   * Uses STRICT matching to avoid false positives
-   * 
-   * IMPORTANT: This function is designed to minimize false positives.
-   * It should only match when we're VERY confident the domain matches the merchant.
+   * Uses strict matching to avoid false positives (e.g., x.com matching Dropbox)
    */
   function findMatchingOffers(offers, currentDomain, currentHostname) {
     const matching = [];
@@ -1726,8 +1652,8 @@
     const brandFromHostname = hostnameParts[0].toLowerCase();
     
     // Skip very short domain names (too likely to cause false positives)
-    // Examples: x.com, t.co, fb.com, go.com, coco.com
-    const MIN_BRAND_LENGTH = 5; // Increased from 4 to 5
+    // Examples: x.com, t.co, fb.com, go.com
+    const MIN_BRAND_LENGTH = 4;
     if (brandFromDomain.length < MIN_BRAND_LENGTH && brandFromHostname.length < MIN_BRAND_LENGTH) {
       console.log('[DealStackr] Domain too short for reliable matching:', brandFromDomain);
       return [];
@@ -1737,22 +1663,11 @@
     const brandName = brandFromDomain.length >= brandFromHostname.length ? brandFromDomain : brandFromHostname;
     
     // Skip generic domains that would match too many things
-    const SKIP_DOMAINS = ['www', 'shop', 'store', 'buy', 'app', 'web', 'go', 'get', 'my', 'the', 'about', 'contact'];
+    const SKIP_DOMAINS = ['www', 'shop', 'store', 'buy', 'app', 'web', 'go', 'get', 'my', 'the'];
     if (SKIP_DOMAINS.includes(brandName)) {
       console.log('[DealStackr] Generic domain, skipping matching:', brandName);
       return [];
     }
-    
-    // Known false positive pairs - domains that should NEVER match certain merchants
-    const FALSE_POSITIVE_BLOCKLIST = [
-      { domain: 'cocomaya', merchant: 'cocoon' },
-      { domain: 'coco', merchant: 'cocoon' },
-      { domain: 'theory', merchant: 'theorie' }, // block similar but different
-      // Add more as discovered
-    ];
-    
-    // Normalize for comparison
-    const brandNormalized = brandName.replace(/[^a-z0-9]/g, '');
     
     for (const offer of offers) {
       const merchantName = (offer.merchant_name || offer.merchant || '').toLowerCase().trim();
@@ -1761,105 +1676,47 @@
       
       // Normalize merchant name for comparison
       const merchantNormalized = merchantName.replace(/[^a-z0-9]/g, '');
+      const brandNormalized = brandName.replace(/[^a-z0-9]/g, '');
       
-      // Check blocklist FIRST - explicit false positive prevention
-      // This prevents specific known false positives like "cocomaya" matching "cocoon"
-      const isBlocked = FALSE_POSITIVE_BLOCKLIST.some(block => {
-        const blockDomainNorm = block.domain.replace(/[^a-z0-9]/g, '');
-        const blockMerchantNorm = block.merchant.replace(/[^a-z0-9]/g, '');
-        
-        // Only block if:
-        // 1. Current domain contains the block domain pattern
-        // 2. Current merchant contains the block merchant pattern  
-        // 3. They are NOT exact matches (don't block legitimate matches!)
-        const domainContainsBlockPattern = brandNormalized.includes(blockDomainNorm);
-        const merchantContainsBlockPattern = merchantNormalized.includes(blockMerchantNorm);
-        const isExactDomainMatch = brandNormalized === blockMerchantNorm;
-        const isExactMerchantMatch = merchantNormalized === blockDomainNorm;
-        
-        return domainContainsBlockPattern && merchantContainsBlockPattern && 
-               !isExactDomainMatch && !isExactMerchantMatch;
-      });
-      
-      if (isBlocked) {
-        console.log('[DealStackr] Blocked false positive match:', brandName, '→', merchantName);
-        continue;
-      }
-      
-      // =========================================================================
-      // MATCHING STRATEGIES (ordered from most to least strict)
-      // =========================================================================
-      
-      // Strategy 1: EXACT MATCH (normalized)
-      // "mackage.com" matches "Mackage" (after normalization)
+      // Strategy 1: Exact match (domain equals merchant name)
       if (merchantNormalized === brandNormalized) {
-        console.log('[DealStackr] ✓ Exact match:', brandName, '→', merchantName);
         matching.push(offer);
         continue;
       }
       
-      // Strategy 2: EXACT WORD MATCH at word boundaries
-      // "mackage.com" matches "Mackage Store" but NOT "Smackage" or "Mackages"
+      // Strategy 2: Brand is contained within merchant name at word boundary
+      // e.g., "mackage" matches "Mackage Store" but not "smackage"
       const merchantWords = merchantName.split(/\s+/);
-      const brandMatchesExactWord = merchantWords.some(word => {
+      const brandMatchesWord = merchantWords.some(word => {
         const wordNormalized = word.replace(/[^a-z0-9]/g, '');
-        // Must be EXACT match of the word, not substring
-        return wordNormalized === brandNormalized;
+        return wordNormalized === brandNormalized || 
+               (wordNormalized.length >= 4 && brandNormalized.length >= 4 && wordNormalized.startsWith(brandNormalized));
       });
       
-      if (brandMatchesExactWord) {
-        console.log('[DealStackr] ✓ Exact word match:', brandName, '→', merchantName);
+      if (brandMatchesWord) {
         matching.push(offer);
         continue;
       }
       
-      // Strategy 3: FIRST WORD EXACT MATCH (for multi-word merchants)
-      // "nordstrom.com" matches "Nordstrom Rack" but not "The Nordstrom"
+      // Strategy 3: First word of merchant name matches brand
       const firstMerchantWord = merchantWords[0]?.replace(/[^a-z0-9]/g, '') || '';
-      if (firstMerchantWord.length >= MIN_BRAND_LENGTH && firstMerchantWord === brandNormalized) {
-        console.log('[DealStackr] ✓ First word exact match:', brandName, '→', merchantName);
-        matching.push(offer);
-        continue;
-      }
-      
-      // Strategy 4: COMPOUND BRAND MATCH (for domains like "nordstromrack.com")
-      // Only if merchant is single word AND length > 6 AND it's contained in domain
-      if (merchantWords.length === 1 && merchantNormalized.length >= 6 && brandNormalized.length >= 6) {
-        // Check if merchant is a complete substring of domain
-        // "nordstromrack" contains "nordstrom" (valid)
-        // But "cocoon" does NOT match "cocomaya" (different brands)
-        if (brandNormalized.includes(merchantNormalized)) {
-          // Additional check: the merchant must be at least 60% of the domain length
-          const lengthRatio = merchantNormalized.length / brandNormalized.length;
-          if (lengthRatio >= 0.6) {
-            console.log('[DealStackr] ✓ Compound brand match:', brandName, '→', merchantName);
-            matching.push(offer);
-            continue;
-          }
+      if (firstMerchantWord.length >= 4 && brandNormalized.length >= 4) {
+        if (firstMerchantWord === brandNormalized || 
+            firstMerchantWord.startsWith(brandNormalized) ||
+            brandNormalized.startsWith(firstMerchantWord)) {
+          matching.push(offer);
+          continue;
         }
       }
       
-      // Strategy 5: REVERSE COMPOUND (domain contains merchant + suffix)
-      // "mackageoutlet.com" should match "Mackage"
-      if (merchantWords.length === 1 && merchantNormalized.length >= 6) {
-        if (brandNormalized.startsWith(merchantNormalized)) {
-          // Merchant must be the PREFIX (not just contained somewhere)
-          // And merchant must be at least 60% of domain
-          const lengthRatio = merchantNormalized.length / brandNormalized.length;
-          if (lengthRatio >= 0.6) {
-            console.log('[DealStackr] ✓ Reverse compound match:', brandName, '→', merchantName);
-            matching.push(offer);
-            continue;
-          }
+      // Strategy 4: Merchant name (single word) is contained within brand
+      // e.g., domain "nordstromrack.com" should match merchant "Nordstrom"
+      if (merchantWords.length === 1 && merchantNormalized.length >= 5) {
+        if (brandNormalized.includes(merchantNormalized) || merchantNormalized.includes(brandNormalized)) {
+          matching.push(offer);
+          continue;
         }
       }
-      
-      // ALL OTHER CASES: NO MATCH
-      // This includes:
-      // - Partial substring matches (e.g., "coco" in both "cocoon" and "cocomaya")
-      // - Short common prefixes (e.g., "the", "shop")
-      // - Similar but different brands (e.g., "theory" vs "theorie")
-      // We err on the side of NOT matching to avoid false positives
     }
     
     // Deduplicate by offer value

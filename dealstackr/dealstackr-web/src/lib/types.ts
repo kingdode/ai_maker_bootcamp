@@ -31,6 +31,13 @@ export interface Offer {
   scanned_at: string;
   stackable?: boolean;
   deal_score?: DealScore;
+  // Point-based reward information
+  points?: {
+    amount: number;              // Number of points (e.g., 5000)
+    program: string;             // Program name (e.g., "Membership Rewards", "Ultimate Rewards")
+    valueCentsPerPoint: number;  // Cents per point value (e.g., 1.5 for Amex MR)
+    estimatedValue: number;      // Calculated dollar value (e.g., $75)
+  };
   crowdsourced?: {
     cashbackRate?: number;
     cashbackFixed?: number;      // Fixed $ amount (e.g., $3 back)

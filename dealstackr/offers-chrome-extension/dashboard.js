@@ -2528,7 +2528,7 @@
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'x-sync-api-key': 'dealstackr-sync-2024'
+            'x-sync-api-key': '59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61'
           },
           body: JSON.stringify({ offers: offersToSync })
         });
@@ -2558,7 +2558,7 @@
                   method: 'POST',
                   headers: { 
                     'Content-Type': 'application/json',
-                    'x-sync-api-key': 'dealstackr-sync-2024'
+                    'x-sync-api-key': '59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61'
                   },
                   body: JSON.stringify({ crowdsourcedDeals: crowdsourcedResult.crowdsourcedDeals })
                 });
