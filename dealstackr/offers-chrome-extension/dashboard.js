@@ -2528,7 +2528,7 @@
         const { userApiKey } = await chrome.storage.local.get(['userApiKey']);
         
         if (!userApiKey) {
-          showMessage('⚠️ Please set your API key in extension settings (click extension icon)', 'warning');
+          alert('⚠️ Please set your API key in extension settings (click extension icon)');
           return;
         }
         
