@@ -491,8 +491,53 @@
         currentCohort: currentCohort
       });
       console.log('[DealStackr] Saved', allDeals.length, 'deals across', Object.keys(dealCohorts).length, 'cohorts');
+      
+      // Auto-sync to website in background
+      autoSyncToWebsite();
     } catch (error) {
       console.error('[DealStackr] Error saving deals:', error);
+    }
+  }
+  
+  /**
+   * Auto-sync offers to website (runs in background, no user interaction needed)
+   */
+  async function autoSyncToWebsite() {
+    try {
+      // Get all offers to sync
+      const offersToSync = allDeals.map(offer => ({
+        id: offer.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        merchant: offer.merchant_name || offer.merchant || 'Unknown',
+        offer_value: offer.offer_value || offer.offer || '',
+        issuer: offer.issuer || 'Unknown',
+        card_name: offer.card_name || offer.card || '',
+        channel: offer.channel || 'Unknown',
+        expires_at: offer.expires_at || offer.expiration || null,
+        scanned_at: offer.scanned_at || offer.scanned_date || new Date().toISOString(),
+        stackable: offer.stackable || false
+      }));
+      
+      if (offersToSync.length === 0) {
+        return; // Nothing to sync
+      }
+      
+      console.log('[DealStackr] Auto-syncing', offersToSync.length, 'offers to website...');
+      
+      const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/offers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offers: offersToSync })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[DealStackr] ✓ Auto-synced', result.count || offersToSync.length, 'offers');
+      } else {
+        console.warn('[DealStackr] Auto-sync failed:', response.status);
+      }
+    } catch (error) {
+      console.warn('[DealStackr] Auto-sync error (will retry later):', error.message);
+      // Silent fail - don't bother user, sync will happen next time
     }
   }
 

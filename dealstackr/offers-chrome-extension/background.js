@@ -105,6 +105,33 @@ async function storeMerchantAffiliateData(domain, data) {
   } catch (error) { console.error('[DealStackr Background] Error storing affiliate data:', error); }
 }
 
+/**
+ * Auto-sync a single crowdsourced report to the website
+ * Runs silently in background, doesn't interrupt user
+ */
+async function autoSyncCrowdsourcedReport(domain, reportData) {
+  try {
+    const crowdsourcedDeals = { [domain]: reportData };
+    
+    console.log('[DealStackr Background] Auto-syncing report for', domain);
+    
+    const response = await fetch('https://dealstackr-dashboard.up.railway.app/api/crowdsourced', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crowdsourcedDeals })
+    });
+    
+    if (response.ok) {
+      console.log('[DealStackr Background] ✓ Auto-synced report for', domain);
+    } else {
+      console.warn('[DealStackr Background] Auto-sync failed for', domain, ':', response.status);
+    }
+  } catch (error) {
+    console.warn('[DealStackr Background] Auto-sync error (will retry later):', error.message);
+    // Silent fail - sync will happen when user opens dashboard
+  }
+}
+
 async function getMerchantAffiliateData(domain) {
   try {
     const result = await chrome.storage.local.get(['merchantAffiliateData']);
@@ -223,6 +250,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         await chrome.storage.local.set({ crowdsourcedDeals });
+        
+        // Auto-sync crowdsourced report to website
+        autoSyncCrowdsourcedReport(data.domain, crowdsourcedDeals[data.domain]);
         
         confirmations.unshift({ domain: data.domain, type: data.type, portal: data.portal, rate: data.rate, rateDisplay: data.rateDisplay, fixedAmount: data.fixedAmount, confirmedAt: data.confirmedAt, url: data.url });
         if (confirmations.length > 100) { confirmations = confirmations.slice(0, 100); }
