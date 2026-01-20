@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CrowdsourcedReport } from '@/lib/types';
 import { checkAdminAuth, unauthorizedResponse } from '@/lib/supabase/auth-check';
-import { CrowdsourcedDealsSchema, validateInput, ValidationError, validateApiKey } from '@/lib/validation';
+import { CrowdsourcedDealsSchema, validateInput, ValidationError, validateApiKey, timingSafeCompare } from '@/lib/validation';
 import { getCorsHeaders, getPreflightHeaders } from '@/lib/cors';
 import fs from 'fs';
 import path from 'path';
@@ -112,7 +112,8 @@ export async function POST(request: NextRequest) {
     const apiKey = request.headers.get('x-sync-api-key');
     let isAuthorized = false;
     
-    if (apiKey === SYNC_API_KEY && SYNC_API_KEY) {
+    // Use timing-safe comparison to prevent timing attacks
+    if (apiKey && SYNC_API_KEY && timingSafeCompare(apiKey, SYNC_API_KEY)) {
       isAuthorized = true;
     } else {
       const auth = await checkAdminAuth();

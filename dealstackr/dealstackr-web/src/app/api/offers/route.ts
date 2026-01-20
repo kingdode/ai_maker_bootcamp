@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOffersAsync as getOffers, getOffersByIssuer, getStackableOffers, getStats, syncOffers, clearOffers, getLastSyncInfo } from '@/lib/data';
+import { getOffers, getOffersByIssuer, getStackableOffers, getStats, syncOffers, clearOffers, getLastSyncInfo } from '@/lib/data';
 import { checkAdminAuth } from '@/lib/supabase/auth-check';
-import { OffersArraySchema, validateInput, ValidationError, validateApiKey } from '@/lib/validation';
+import { OffersArraySchema, validateInput, ValidationError, validateApiKey, timingSafeCompare } from '@/lib/validation';
 import { getCorsHeaders, getPreflightHeaders } from '@/lib/cors';
 import { checkRateLimit, getClientIdentifier, createRateLimitHeaders } from '@/lib/rateLimit';
 
@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
     // Validate API key OR check admin authentication
     let isAuthorized = false;
     
-    if (apiKey === SYNC_API_KEY && SYNC_API_KEY) {
+    // Use timing-safe comparison to prevent timing attacks
+    if (apiKey && SYNC_API_KEY && timingSafeCompare(apiKey, SYNC_API_KEY)) {
       isAuthorized = true;
     } else {
       // Fallback: check if user is authenticated as admin
@@ -139,6 +140,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized. Valid X-Sync-API-Key header or admin authentication required.' },
         { status: 401, headers: corsHeaders }
+      );
+    }
+    
+    // Check request size limit (max 1MB)
+    const contentLength = request.headers.get('content-length');
+    const MAX_BODY_SIZE = 1024 * 1024; // 1MB
+    if (contentLength && parseInt(contentLength) > MAX_BODY_SIZE) {
+      return NextResponse.json(
+        { error: 'Request body too large. Maximum 1MB allowed.' },
+        { status: 413, headers: corsHeaders }
       );
     }
     
@@ -159,6 +170,15 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(offersData)) {
       return NextResponse.json(
         { error: 'Expected array of offers' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    
+    // Limit number of offers per request (max 500)
+    const MAX_OFFERS_PER_REQUEST = 500;
+    if (offersData.length > MAX_OFFERS_PER_REQUEST) {
+      return NextResponse.json(
+        { error: `Too many offers. Maximum ${MAX_OFFERS_PER_REQUEST} per request.` },
         { status: 400, headers: corsHeaders }
       );
     }

@@ -87,7 +87,7 @@ export const OfferSchema = z.object({
 }).transform(data => ({
   ...data,
   // Ensure id is always present
-  id: data.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  id: data.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
 }));
 
 export const OffersArraySchema = z.array(OfferSchema)
@@ -290,4 +290,47 @@ export function sanitizeString(input: string): string {
     .replace(/javascript:/gi, '')
     .replace(/on\w+\s*=/gi, '') // Remove event handlers like onclick=
     .trim();
+}
+
+/**
+ * Timing-safe string comparison to prevent timing attacks
+ * Uses constant-time comparison to avoid leaking information about
+ * which characters matched/mismatched
+ * 
+ * @param a - First string (user input)
+ * @param b - Second string (secret)
+ * @returns true if strings are equal
+ */
+export function timingSafeCompare(a: string | null, b: string | null | undefined): boolean {
+  // Handle null/undefined cases
+  if (!a || !b) return false;
+  
+  // Convert to buffers for constant-time comparison
+  const bufferA = Buffer.from(a);
+  const bufferB = Buffer.from(b);
+  
+  // Different lengths - still do comparison to prevent length leaking
+  if (bufferA.length !== bufferB.length) {
+    // Compare with self to maintain constant time
+    try {
+      const { timingSafeEqual } = require('crypto');
+      timingSafeEqual(bufferA, bufferA);
+    } catch {
+      // Fallback if crypto not available
+    }
+    return false;
+  }
+  
+  try {
+    const { timingSafeEqual } = require('crypto');
+    return timingSafeEqual(bufferA, bufferB);
+  } catch {
+    // Fallback for environments without crypto module (edge runtime)
+    // This is less secure but better than crashing
+    let result = 0;
+    for (let i = 0; i < bufferA.length; i++) {
+      result |= bufferA[i] ^ bufferB[i];
+    }
+    return result === 0;
+  }
 }

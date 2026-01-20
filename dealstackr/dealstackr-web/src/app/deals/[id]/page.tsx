@@ -9,7 +9,7 @@ interface DealPageProps {
 
 export default async function DealPage({ params }: DealPageProps) {
   const { id } = await params;
-  const deal = getFeaturedDealById(id);
+  const deal = await getFeaturedDealById(id);
 
   if (!deal) {
     notFound();

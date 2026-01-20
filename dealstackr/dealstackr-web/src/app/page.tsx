@@ -6,11 +6,14 @@ import { getFeaturedDeals, getOffers, getStats, getLastSyncInfo } from '@/lib/da
 
 export const dynamic = 'force-dynamic';
 
-export default function Home() {
-  const featuredDeals = getFeaturedDeals();
-  const offers = getOffers();
-  const stats = getStats();
-  const syncInfo = getLastSyncInfo();
+export default async function Home() {
+  // Properly await all async functions in parallel
+  const [featuredDeals, offers, stats, syncInfo] = await Promise.all([
+    getFeaturedDeals(),
+    getOffers(),
+    getStats(),
+    getLastSyncInfo()
+  ]);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">

@@ -19,13 +19,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 // OFFERS
 // ============================================================================
 
-export function getOffers(): Offer[] {
-  // This is now async, but keeping sync for compatibility
-  // Will be called with await in API routes
-  throw new Error('Use async version: getOffersAsync()');
-}
-
-export async function getOffersAsync(): Promise<Offer[]> {
+export async function getOffers(): Promise<Offer[]> {
   const { data, error } = await supabase
     .from('offers')
     .select('*')
@@ -82,11 +76,10 @@ export async function getStats(): Promise<DashboardStats> {
   
   return {
     totalOffers: allOffers.count || 0,
-    byIssuer: {
-      amex: amexOffers.count || 0,
-      chase: chaseOffers.count || 0
-    },
-    stackable: stackableOffers.count || 0
+    amexOffers: amexOffers.count || 0,
+    chaseOffers: chaseOffers.count || 0,
+    stackableOffers: stackableOffers.count || 0,
+    lastUpdated: new Date().toISOString()
   };
 }
 
@@ -111,11 +104,15 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
 
         seen.set(key, {
           ...offer,
-          id: offer.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: offer.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           deal_score,
-          estimated_value: parsedValue.estimatedValue,
-          points_program: parsedValue.pointsProgram,
-          points_amount: parsedValue.pointsAmount
+          // Add points info if detected
+          points: parsedValue.points ? {
+            amount: parsedValue.points.amount,
+            program: parsedValue.points.program,
+            valueCentsPerPoint: 1.5, // Default valuation
+            estimatedValue: parsedValue.points.estimatedValue
+          } : undefined
         });
       }
     }
