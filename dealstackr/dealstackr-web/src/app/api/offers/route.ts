@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Handle clear action - ADMIN ONLY
+    // Handle clear action - ADMIN ONLY with confirmation
     if (body.action === 'clear') {
       // Check for API key or admin auth for destructive actions
       const apiKey = request.headers.get('x-sync-api-key');
@@ -144,6 +144,17 @@ export async function POST(request: NextRequest) {
           { status: 401, headers: corsHeaders }
         );
       }
+      
+      // Require explicit confirmation
+      if (body.confirm !== 'DELETE_ALL_OFFERS') {
+        return NextResponse.json(
+          { error: 'Confirmation required. Set confirm: "DELETE_ALL_OFFERS" to proceed.' },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      
+      // Log the deletion for audit trail
+      console.warn('[SECURITY] Clearing all offers - requested by admin');
       
       await clearOffers();
       return NextResponse.json(
