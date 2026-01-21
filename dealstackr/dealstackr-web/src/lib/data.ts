@@ -4,11 +4,19 @@ import { calculateDealScore, parseOfferValue } from './offerScoring';
 
 // Initialize Supabase client with service role for server-side operations
 // Service role bypasses RLS for admin operations - NEVER expose to client!
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Validate environment variables
+if (!supabaseUrl) {
+  console.error('[DATA] ERROR: NEXT_PUBLIC_SUPABASE_URL is not set!');
+}
+if (!supabaseServiceKey) {
+  console.error('[DATA] ERROR: SUPABASE_SERVICE_ROLE_KEY is not set!');
+}
 
 // Use service role key for server-side data operations
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+const supabase = createClient(supabaseUrl || '', supabaseServiceKey || '', {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -20,16 +28,22 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 // ============================================================================
 
 export async function getOffers(): Promise<Offer[]> {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('[DATA] Cannot fetch offers - Supabase not configured');
+    return [];
+  }
+  
   const { data, error } = await supabase
     .from('offers')
     .select('*')
     .order('scanned_at', { ascending: false });
   
   if (error) {
-    console.error('Error fetching offers:', error);
+    console.error('[DATA] Error fetching offers:', error.message, error.details);
     return [];
   }
   
+  console.log('[DATA] Fetched', data?.length || 0, 'offers from Supabase');
   return data as Offer[];
 }
 
