@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Offer, FeaturedDeal, DashboardStats, CrowdsourcedReport } from './types';
 import { calculateDealScore, parseOfferValue } from './offerScoring';
 
@@ -7,85 +7,101 @@ import { calculateDealScore, parseOfferValue } from './offerScoring';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Validate environment variables
-if (!supabaseUrl) {
-  console.error('[DATA] ERROR: NEXT_PUBLIC_SUPABASE_URL is not set!');
-}
-if (!supabaseServiceKey) {
-  console.error('[DATA] ERROR: SUPABASE_SERVICE_ROLE_KEY is not set!');
-}
+// Lazy initialization to avoid build-time errors
+let _supabase: SupabaseClient | null = null;
 
-// Use service role key for server-side data operations
-const supabase = createClient(supabaseUrl || '', supabaseServiceKey || '', {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+function getSupabase(): SupabaseClient {
+  if (_supabase) return _supabase;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    // During build, env vars may not be available
+    // Return a dummy client that will fail gracefully at runtime
+    console.warn('[DATA] Supabase not configured - some features will be unavailable');
+    throw new Error('Supabase not configured. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
   }
-});
+  
+  _supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  
+  return _supabase;
+}
 
 // ============================================================================
 // OFFERS
 // ============================================================================
 
 export async function getOffers(): Promise<Offer[]> {
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('[DATA] Cannot fetch offers - Supabase not configured');
+  try {
+    const { data, error } = await getSupabase()
+      .from('offers')
+      .select('*')
+      .order('scanned_at', { ascending: false });
+    
+    if (error) {
+      console.error('[DATA] Error fetching offers:', error.message);
+      return [];
+    }
+    
+    return data as Offer[];
+  } catch (e) {
+    console.error('[DATA] Cannot fetch offers:', e);
     return [];
   }
-  
-  const { data, error } = await supabase
-    .from('offers')
-    .select('*')
-    .order('scanned_at', { ascending: false });
-  
-  if (error) {
-    console.error('[DATA] Error fetching offers:', error.message, error.details);
-    return [];
-  }
-  
-  console.log('[DATA] Fetched', data?.length || 0, 'offers from Supabase');
-  return data as Offer[];
 }
 
 export async function getOffersByIssuer(issuer: string): Promise<Offer[]> {
   const normalizedIssuer = issuer.toLowerCase() === 'amex' ? 'Amex' : 
                            issuer.toLowerCase() === 'chase' ? 'Chase' : 'Unknown';
   
-  const { data, error } = await supabase
-    .from('offers')
-    .select('*')
-    .eq('issuer', normalizedIssuer)
-    .order('scanned_at', { ascending: false });
+  try {
+    const { data, error } = await getSupabase()
+      .from('offers')
+      .select('*')
+      .eq('issuer', normalizedIssuer)
+      .order('scanned_at', { ascending: false });
   
-  if (error) {
-    console.error('Error fetching offers by issuer:', error);
+    if (error) {
+      console.error('Error fetching offers by issuer:', error);
+      return [];
+    }
+  
+    return data as Offer[];
+  } catch (e) {
+    console.error('[DATA] Cannot fetch offers by issuer:', e);
     return [];
   }
-  
-  return data as Offer[];
 }
 
 export async function getStackableOffers(): Promise<Offer[]> {
-  const { data, error } = await supabase
-    .from('offers')
-    .select('*')
-    .eq('stackable', true)
-    .order('scanned_at', { ascending: false });
+  try {
+    const { data, error } = await getSupabase()
+      .from('offers')
+      .select('*')
+      .eq('stackable', true)
+      .order('scanned_at', { ascending: false });
   
-  if (error) {
-    console.error('Error fetching stackable offers:', error);
+    if (error) {
+      console.error('Error fetching stackable offers:', error);
+      return [];
+    }
+  
+    return data as Offer[];
+  } catch (e) {
+    console.error('[DATA] Cannot fetch stackable offers:', e);
     return [];
   }
-  
-  return data as Offer[];
 }
 
 export async function getStats(): Promise<DashboardStats> {
   const [allOffers, amexOffers, chaseOffers, stackableOffers] = await Promise.all([
-    supabase.from('offers').select('id', { count: 'exact', head: true }),
-    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('issuer', 'Amex'),
-    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('issuer', 'Chase'),
-    supabase.from('offers').select('id', { count: 'exact', head: true }).eq('stackable', true)
+    getSupabase().from('offers').select('id', { count: 'exact', head: true }),
+    getSupabase().from('offers').select('id', { count: 'exact', head: true }).eq('issuer', 'Amex'),
+    getSupabase().from('offers').select('id', { count: 'exact', head: true }).eq('issuer', 'Chase'),
+    getSupabase().from('offers').select('id', { count: 'exact', head: true }).eq('stackable', true)
   ]);
   
   return {
@@ -136,7 +152,7 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
     });
 
     // Get existing offers to check for duplicates
-    const { data: existingOffers } = await supabase
+    const { data: existingOffers } = await getSupabase()
       .from('offers')
       .select('id, merchant, offer_value, issuer, card_name');
     
@@ -188,7 +204,7 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
     }
     
     // Upsert to database - now IDs will match existing offers
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('offers')
       .upsert(deduped, { onConflict: 'id' });
     
@@ -227,7 +243,7 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
  */
 export async function deduplicateOffers(): Promise<{ removed: number; kept: number }> {
   try {
-    const { data: allOffers, error } = await supabase
+    const { data: allOffers, error } = await getSupabase()
       .from('offers')
       .select('*')
       .order('scanned_at', { ascending: false });
@@ -252,7 +268,7 @@ export async function deduplicateOffers(): Promise<{ removed: number; kept: numb
     }
     
     if (duplicateIds.length > 0) {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await getSupabase()
         .from('offers')
         .delete()
         .in('id', duplicateIds);
@@ -273,13 +289,13 @@ export async function deduplicateOffers(): Promise<{ removed: number; kept: numb
 }
 
 export async function clearOffers(): Promise<void> {
-  await supabase.from('offers').delete().neq('id', '');
+  await getSupabase().from('offers').delete().neq('id', '');
 }
 
 export async function getLastSyncInfo(): Promise<{ lastSync: string | null; totalOffers: number }> {
   const [lastOffer, count] = await Promise.all([
-    supabase.from('offers').select('scanned_at').order('scanned_at', { ascending: false }).limit(1).single(),
-    supabase.from('offers').select('id', { count: 'exact', head: true })
+    getSupabase().from('offers').select('scanned_at').order('scanned_at', { ascending: false }).limit(1).single(),
+    getSupabase().from('offers').select('id', { count: 'exact', head: true })
   ]);
   
   return {
@@ -293,7 +309,7 @@ export async function getLastSyncInfo(): Promise<{ lastSync: string | null; tota
 // ============================================================================
 
 export async function getFeaturedDeals(): Promise<FeaturedDeal[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('featured_deals')
     .select('*')
     .eq('active', true)
@@ -309,7 +325,7 @@ export async function getFeaturedDeals(): Promise<FeaturedDeal[]> {
 }
 
 export async function getAllFeaturedDeals(): Promise<FeaturedDeal[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('featured_deals')
     .select('*')
     .order('active', { ascending: false })
@@ -325,7 +341,7 @@ export async function getAllFeaturedDeals(): Promise<FeaturedDeal[]> {
 }
 
 export async function getFeaturedDealById(id: string): Promise<FeaturedDeal | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('featured_deals')
     .select('*')
     .eq('id', id)
@@ -340,7 +356,7 @@ export async function getFeaturedDealById(id: string): Promise<FeaturedDeal | nu
 }
 
 export async function createFeaturedDeal(deal: Omit<FeaturedDeal, 'id' | 'createdAt' | 'updatedAt'>): Promise<FeaturedDeal> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('featured_deals')
     .insert([deal])
     .select()
@@ -355,7 +371,7 @@ export async function createFeaturedDeal(deal: Omit<FeaturedDeal, 'id' | 'create
 }
 
 export async function updateFeaturedDeal(id: string, updates: Partial<FeaturedDeal>): Promise<FeaturedDeal | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('featured_deals')
     .update(updates)
     .eq('id', id)
@@ -371,7 +387,7 @@ export async function updateFeaturedDeal(id: string, updates: Partial<FeaturedDe
 }
 
 export async function deleteFeaturedDeal(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('featured_deals')
     .delete()
     .eq('id', id);
@@ -384,7 +400,7 @@ export async function deleteFeaturedDeal(id: string): Promise<boolean> {
 // ============================================================================
 
 export async function getCrowdsourcedReports(): Promise<Record<string, CrowdsourcedReport>> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('crowdsourced_reports')
     .select('*');
   
