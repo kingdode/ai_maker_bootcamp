@@ -824,7 +824,25 @@
     'hp': 'https://www.hp.com/',
     'express': 'https://www.express.com/',
     'avis': 'https://www.avis.com/',
-    'avis car rental': 'https://www.avis.com/'
+    'avis car rental': 'https://www.avis.com/',
+    
+    // Additional merchants (added for missing links)
+    'cocoon by sealy': 'https://www.cocoonbysealy.com/',
+    'cocoon': 'https://www.cocoonbysealy.com/',
+    'sealy': 'https://www.sealy.com/',
+    'club champion golf': 'https://www.clubchampiongolf.com/',
+    'club champion': 'https://www.clubchampiongolf.com/',
+    'the prisoner wine company': 'https://www.theprisonerwinecompany.com/',
+    'prisoner wine company': 'https://www.theprisonerwinecompany.com/',
+    'prisoner wine': 'https://www.theprisonerwinecompany.com/',
+    'tonal': 'https://www.tonal.com/',
+    'mizzen+main': 'https://www.mizzenandmain.com/',
+    'mizzen main': 'https://www.mizzenandmain.com/',
+    'mizzen and main': 'https://www.mizzenandmain.com/',
+    'tecovas': 'https://www.tecovas.com/',
+    'wine insiders': 'https://www.wineinsiders.com/',
+    'motley fool': 'https://www.fool.com/',
+    'the motley fool': 'https://www.fool.com/'
   };
 
   /**
@@ -1119,9 +1137,63 @@
       }
     }
     
-    // 5. No match found - don't guess, return null
-    // (Guessing often produces incorrect URLs)
+    // 5. Smart fallback: Try to generate URL from merchant name
+    // This helps with merchants not in our list
+    const generatedUrl = generateMerchantUrl(merchantName);
+    if (generatedUrl) {
+      return generatedUrl;
+    }
+    
+    // 6. No match found
     return null;
+  }
+  
+  /**
+   * Generate a merchant URL from the merchant name
+   * Used as a fallback when no explicit mapping exists
+   * @param {string} merchantName 
+   * @returns {string|null}
+   */
+  function generateMerchantUrl(merchantName) {
+    if (!merchantName) return null;
+    
+    // Clean up the merchant name
+    let cleaned = merchantName.toLowerCase().trim();
+    
+    // Remove common suffixes that aren't part of the domain
+    cleaned = cleaned.replace(/\s*[-–—]\s*.+$/, ''); // Remove everything after dash (e.g., "Tonal - Smart Home Gym" -> "Tonal")
+    cleaned = cleaned.replace(/\s*(inc\.?|llc|corp\.?|co\.?|ltd\.?)$/i, '');
+    cleaned = cleaned.replace(/\s*(subscription|purchase|membership|delivery|service)s?$/i, '');
+    cleaned = cleaned.replace(/\s*(online|shop|store|usa|us)$/i, '');
+    cleaned = cleaned.replace(/['']s?\s*$/i, ''); // Remove possessives
+    cleaned = cleaned.trim();
+    
+    // Skip if too short after cleanup
+    if (cleaned.length < 3) return null;
+    
+    // Skip known problematic patterns
+    const skipPatterns = [
+      /^american express/i,
+      /^chase\s/i,
+      /^the\s*$/i,
+      /^\d/  // Starts with number
+    ];
+    if (skipPatterns.some(p => p.test(cleaned))) return null;
+    
+    // Generate domain-friendly name
+    // Remove "the " prefix, spaces become nothing or dashes
+    let domain = cleaned.replace(/^the\s+/i, '');
+    
+    // Handle special characters
+    domain = domain.replace(/[+&]/g, 'and'); // + and & become "and"
+    domain = domain.replace(/[^a-z0-9\s]/g, ''); // Remove other special chars
+    domain = domain.replace(/\s+/g, ''); // Remove spaces for domain
+    
+    // Skip if too short or too long
+    if (domain.length < 3 || domain.length > 30) return null;
+    
+    // Generate URL - try www.{domain}.com
+    return `https://www.${domain}.com/`;
   }
 
   /**
