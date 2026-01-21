@@ -97,6 +97,34 @@ export async function getStats(): Promise<DashboardStats> {
   };
 }
 
+/**
+ * Normalize a string for deduplication
+ * - Lowercase
+ * - Trim whitespace
+ * - Collapse multiple spaces
+ * - Remove special characters that vary
+ */
+function normalizeForDedup(str: string): string {
+  return (str || '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ')           // Collapse spaces
+    .replace(/[®™©]/g, '')          // Remove trademark symbols
+    .replace(/[''""`]/g, "'")       // Normalize quotes
+    .replace(/[–—]/g, '-');         // Normalize dashes
+}
+
+/**
+ * Generate a consistent dedup key for an offer
+ */
+function getOfferDedupeKey(offer: Offer): string {
+  const merchant = normalizeForDedup(offer.merchant);
+  const offerValue = normalizeForDedup(offer.offer_value);
+  const issuer = normalizeForDedup(offer.issuer);
+  const cardName = normalizeForDedup(offer.card_name || '');
+  return `${merchant}|${offerValue}|${issuer}|${cardName}`;
+}
+
 export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean; count: number; message: string }> {
   try {
     // Data quality filter
@@ -107,24 +135,42 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
       return true;
     });
 
-    // Deduplicate
+    // Get existing offers to check for duplicates
+    const { data: existingOffers } = await supabase
+      .from('offers')
+      .select('id, merchant, offer_value, issuer, card_name');
+    
+    // Build a map of existing offers by their dedup key
+    const existingByKey = new Map<string, string>();
+    if (existingOffers) {
+      for (const existing of existingOffers) {
+        const key = getOfferDedupeKey(existing as Offer);
+        existingByKey.set(key, existing.id);
+      }
+    }
+
+    // Deduplicate new offers and match to existing IDs
     const seen = new Map<string, Offer>();
     for (const offer of qualityFiltered) {
-      const key = `${offer.merchant}|${offer.offer_value}|${offer.issuer}|${offer.card_name}`;
+      const key = getOfferDedupeKey(offer);
       const existing = seen.get(key);
+      
       if (!existing || new Date(offer.scanned_at) > new Date(existing.scanned_at)) {
         const deal_score = offer.deal_score ?? calculateDealScore(offer.offer_value);
         const parsedValue = parseOfferValue(offer.offer_value);
-
+        
+        // Use existing ID if this offer already exists in DB, otherwise generate new
+        const existingId = existingByKey.get(key);
+        
         seen.set(key, {
           ...offer,
-          id: offer.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+          id: existingId || offer.id || `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           deal_score,
           // Add points info if detected
           points: parsedValue.points ? {
             amount: parsedValue.points.amount,
             program: parsedValue.points.program,
-            valueCentsPerPoint: 1.5, // Default valuation
+            valueCentsPerPoint: 1.5,
             estimatedValue: parsedValue.points.estimatedValue
           } : undefined
         });
@@ -133,13 +179,21 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
     
     const deduped = Array.from(seen.values());
     
-    // Upsert to database
+    if (deduped.length === 0) {
+      return {
+        success: true,
+        count: 0,
+        message: 'No offers to sync'
+      };
+    }
+    
+    // Upsert to database - now IDs will match existing offers
     const { error } = await supabase
       .from('offers')
       .upsert(deduped, { onConflict: 'id' });
     
     if (error) {
-      console.error('Error syncing offers:', error);
+      console.error('[DATA] Error syncing offers:', error);
       return {
         success: false,
         count: 0,
@@ -147,10 +201,15 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
       };
     }
     
+    const newCount = deduped.filter(o => !existingByKey.has(getOfferDedupeKey(o))).length;
+    const updatedCount = deduped.length - newCount;
+    
+    console.log(`[DATA] Synced ${deduped.length} offers (${newCount} new, ${updatedCount} updated)`);
+    
     return {
       success: true,
       count: deduped.length,
-      message: `Synced ${deduped.length} offers (${newOffers.length - deduped.length} duplicates removed)`
+      message: `Synced ${deduped.length} offers (${newCount} new, ${updatedCount} updated, ${newOffers.length - qualityFiltered.length} filtered, ${qualityFiltered.length - deduped.length} duplicates)`
     };
   } catch (error) {
     console.error('Error syncing offers:', error);
@@ -159,6 +218,57 @@ export async function syncOffers(newOffers: Offer[]): Promise<{ success: boolean
       count: 0,
       message: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
     };
+  }
+}
+
+/**
+ * Remove duplicate offers from the database
+ * Keeps the most recently scanned version of each offer
+ */
+export async function deduplicateOffers(): Promise<{ removed: number; kept: number }> {
+  try {
+    const { data: allOffers, error } = await supabase
+      .from('offers')
+      .select('*')
+      .order('scanned_at', { ascending: false });
+    
+    if (error || !allOffers) {
+      console.error('[DATA] Error fetching offers for dedup:', error);
+      return { removed: 0, kept: 0 };
+    }
+    
+    // Group by dedup key, keeping the first (most recent) one
+    const seen = new Map<string, Offer>();
+    const duplicateIds: string[] = [];
+    
+    for (const offer of allOffers) {
+      const key = getOfferDedupeKey(offer as Offer);
+      if (seen.has(key)) {
+        // This is a duplicate - mark for deletion
+        duplicateIds.push(offer.id);
+      } else {
+        seen.set(key, offer as Offer);
+      }
+    }
+    
+    if (duplicateIds.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('offers')
+        .delete()
+        .in('id', duplicateIds);
+      
+      if (deleteError) {
+        console.error('[DATA] Error deleting duplicates:', deleteError);
+        return { removed: 0, kept: seen.size };
+      }
+      
+      console.log(`[DATA] Removed ${duplicateIds.length} duplicate offers, kept ${seen.size}`);
+    }
+    
+    return { removed: duplicateIds.length, kept: seen.size };
+  } catch (error) {
+    console.error('[DATA] Error in deduplicateOffers:', error);
+    return { removed: 0, kept: 0 };
   }
 }
 

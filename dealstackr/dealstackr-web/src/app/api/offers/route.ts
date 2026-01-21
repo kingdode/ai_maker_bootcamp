@@ -125,6 +125,33 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
+    // Handle deduplicate action - ADMIN ONLY
+    if (body.action === 'deduplicate') {
+      const apiKey = request.headers.get('x-sync-api-key');
+      let isAdmin = false;
+      
+      if (apiKey && SYNC_API_KEY && timingSafeCompare(apiKey, SYNC_API_KEY)) {
+        isAdmin = true;
+      } else {
+        const auth = await checkAdminAuth();
+        isAdmin = auth.authenticated;
+      }
+      
+      if (!isAdmin) {
+        return NextResponse.json(
+          { error: 'Unauthorized. Admin access required to deduplicate.' },
+          { status: 401, headers: corsHeaders }
+        );
+      }
+      
+      const { deduplicateOffers } = await import('@/lib/data');
+      const result = await deduplicateOffers();
+      return NextResponse.json(
+        { success: true, ...result, message: `Removed ${result.removed} duplicates, kept ${result.kept} unique offers` },
+        { headers: corsHeaders }
+      );
+    }
+    
     // Handle clear action - ADMIN ONLY with confirmation
     if (body.action === 'clear') {
       // Check for API key or admin auth for destructive actions
