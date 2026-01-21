@@ -25,6 +25,12 @@ export default function Header() {
               Offers
             </Link>
             <Link 
+              href="/calculator" 
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Calculator
+            </Link>
+            <Link 
               href="/admin" 
               className="text-sm px-4 py-2 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/20 hover:bg-indigo-500/20 transition-all"
             >
