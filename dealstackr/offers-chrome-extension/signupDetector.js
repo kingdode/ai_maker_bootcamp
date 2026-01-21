@@ -1710,7 +1710,7 @@
 
     // Show confirmation widget only if:
     // 1. Auto-open is triggered (came from dashboard/website), OR
-    // 2. There are actual deals/reports for this merchant
+    // 2. There are actual deals/reports for THIS SPECIFIC merchant
     if (shouldAutoOpen) {
       console.log('[DealStackr] Auto-opening widget from DealStackr navigation');
       setTimeout(() => {
@@ -1725,23 +1725,19 @@
         }, 100);
       }, 1000); // Faster for auto-open
     } else {
-      // Normal flow - check if merchant has deal data first
-      // But be more lenient - also show if we have ANY offers in storage
+      // Normal flow - ONLY show if this specific merchant has deal data
       setTimeout(async () => {
-        console.log('[DealStackr] Checking if should show widget...');
+        console.log('[DealStackr] Checking if should show widget for:', getDomain());
         try {
-          // First check: Does this merchant have any deals or reports?
+          // Check: Does this SPECIFIC merchant have any deals or reports?
           const hasDealData = await hasDealDataForMerchant();
           
           if (!hasDealData) {
-            // Even without deals, show widget if user has offers scanned (encourages reporting)
-            const hasAnyOffers = await hasOffersInStorage();
-            if (!hasAnyOffers) {
-              console.log('[DealStackr] No deals and no offers in storage, not showing widget');
-              return;
-            }
-            console.log('[DealStackr] No deals for merchant but user has offers, showing widget');
+            console.log('[DealStackr] No deals for this merchant, not showing widget');
+            return;
           }
+          
+          console.log('[DealStackr] Found deals for this merchant, checking recent confirmation...');
           
           // Second check: Did user already confirm recently?
           const hasRecent = await hasRecentConfirmation();
