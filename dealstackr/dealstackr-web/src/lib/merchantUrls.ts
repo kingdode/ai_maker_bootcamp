@@ -794,14 +794,8 @@ export const MERCHANT_URLS: Record<string, string | null> = {
   'the prisoner wine company': 'https://www.theprisonerwinecompany.com/',
   'prisoner wine company': 'https://www.theprisonerwinecompany.com/',
   'prisoner wine': 'https://www.theprisonerwinecompany.com/',
-  'tonal': 'https://www.tonal.com/',
-  'mizzen+main': 'https://www.mizzenandmain.com/',
   'mizzen main': 'https://www.mizzenandmain.com/',
   'mizzen and main': 'https://www.mizzenandmain.com/',
-  'tecovas': 'https://www.tecovas.com/',
-  'wine insiders': 'https://www.wineinsiders.com/',
-  'motley fool': 'https://www.fool.com/',
-  'the motley fool': 'https://www.fool.com/',
 };
 
 // Exclusion rules to prevent false positive matches
