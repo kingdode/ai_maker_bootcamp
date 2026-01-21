@@ -16,8 +16,13 @@
 (function() {
   'use strict';
 
+  // DEBUG: Log immediately when script loads
+  console.log('[DealStackr] 🚀 Script loaded on:', window.location.href);
+  console.log('[DealStackr] URL search params:', window.location.search);
+
   // Avoid running on extension pages
   if (window.location.protocol === 'chrome-extension:') {
+    console.log('[DealStackr] Skipping extension page');
     return;
   }
 
@@ -31,8 +36,11 @@
 
   const hostname = window.location.hostname.toLowerCase();
   if (EXCLUDED_DOMAINS.some(d => hostname.includes(d))) {
+    console.log('[DealStackr] Skipping excluded domain:', hostname);
     return;
   }
+  
+  console.log('[DealStackr] ✓ Passed domain filter, continuing initialization');
 
   // Score weights for different signals
   const SIGNAL_WEIGHTS = {
@@ -95,9 +103,12 @@
   // Check if we came from DealStackr dashboard (auto-open trigger)
   function checkAutoOpenTrigger() {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('dealstackr') === 'report') {
+    const dealstackrParam = urlParams.get('dealstackr');
+    console.log('[DealStackr] Checking auto-open trigger, dealstackr param:', dealstackrParam);
+    
+    if (dealstackrParam === 'report') {
       shouldAutoOpen = true;
-      console.log('[DealStackr] Auto-open triggered from URL parameter');
+      console.log('[DealStackr] ✓ Auto-open triggered from URL parameter!');
       
       // Also store in session for reliability
       try {
