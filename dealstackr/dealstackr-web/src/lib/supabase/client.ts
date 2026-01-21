@@ -1,6 +1,6 @@
-import { createBrowserClient, SupabaseClient } from '@supabase/ssr';
+import { createBrowserClient } from '@supabase/ssr';
 
-let client: SupabaseClient | null = null;
+let client: ReturnType<typeof createBrowserClient> | null = null;
 
 export function createClient() {
   // Return cached client if available

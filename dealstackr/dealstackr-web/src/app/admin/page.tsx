@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { User } from '@supabase/supabase-js';
+import { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { FeaturedDeal, Offer, CrowdsourcedReport } from '@/lib/types';
 import { calculateStackedDeal, parseCardOffer, getStackType, DealComponents, DealCalculation } from '@/lib/dealCalculator';
 
@@ -39,7 +39,7 @@ export default function AdminPage() {
     checkUser();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
         router.push('/admin/login');
