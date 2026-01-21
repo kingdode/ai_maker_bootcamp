@@ -1611,6 +1611,8 @@
       // Use the production API URL
       const API_URL = 'https://dealstackr-dashboard.up.railway.app/api/offers';
       
+      console.log('[DealStackr] Fetching from API:', API_URL);
+      
       const response = await fetch(API_URL, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
@@ -1622,20 +1624,27 @@
       }
       
       const data = await response.json();
-      const offers = data.offers || data || [];
+      // Handle both { offers: [...] } and direct array response
+      const offers = Array.isArray(data) ? data : (data.offers || []);
       
       console.log('[DealStackr] Remote API returned', offers.length, 'offers');
       
       if (offers.length > 0) {
         // Cache the offers locally for faster future checks
         try {
-          chrome.storage.local.set({ 'allDeals': offers });
+          await chrome.storage.local.set({ 'allDeals': offers });
           console.log('[DealStackr] Cached', offers.length, 'offers locally');
         } catch (e) {
-          // Ignore cache errors
+          console.warn('[DealStackr] Cache error:', e);
         }
         
+        // Debug: Log sample merchants from API
+        const sampleMerchants = offers.slice(0, 5).map(o => o.merchant || o.merchant_name);
+        console.log('[DealStackr] Sample merchants from API:', sampleMerchants);
+        
         const matchingOffers = findMatchingOffers(offers, currentDomain, currentHostname);
+        console.log('[DealStackr] Matching offers for', currentDomain, ':', matchingOffers.length);
+        
         if (matchingOffers.length > 0) {
           console.log('[DealStackr] Found', matchingOffers.length, 'matching offers from API for', currentDomain);
           return true;
@@ -1645,11 +1654,7 @@
       console.log('[DealStackr] No matching deals found in API for', currentDomain);
       return false;
     } catch (error) {
-      console.log('[DealStackr] Error fetching from API:', error);
-      return false;
-    }
-  }
-      // On error, don't show widget to avoid annoying users
+      console.log('[DealStackr] Error fetching from API:', error.message || error);
       return false;
     }
   }
