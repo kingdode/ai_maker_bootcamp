@@ -2,21 +2,22 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Offer, FeaturedDeal, DashboardStats, CrowdsourcedReport } from './types';
 import { calculateDealScore, parseOfferValue } from './offerScoring';
 
-// Initialize Supabase client with service role for server-side operations
-// Service role bypasses RLS for admin operations - NEVER expose to client!
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 // Lazy initialization to avoid build-time errors
+// Environment variables are read at RUNTIME, not module load time
 let _supabase: SupabaseClient | null = null;
 
 function getSupabase(): SupabaseClient {
   if (_supabase) return _supabase;
   
+  // Read env vars inside the function so they're evaluated at runtime
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
   if (!supabaseUrl || !supabaseServiceKey) {
-    // During build, env vars may not be available
-    // Return a dummy client that will fail gracefully at runtime
-    console.warn('[DATA] Supabase not configured - some features will be unavailable');
+    console.error('[DATA] Missing env vars:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseServiceKey
+    });
     throw new Error('Supabase not configured. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
   }
   
@@ -27,6 +28,7 @@ function getSupabase(): SupabaseClient {
     }
   });
   
+  console.log('[DATA] Supabase client initialized successfully');
   return _supabase;
 }
 
