@@ -920,3 +920,59 @@ export function getMerchantUrl(merchantName: string): string | null {
   // 5. No match found - don't guess, return null
   return null;
 }
+
+/**
+ * Get merchant logo URL using free logo APIs
+ * Uses Clearbit Logo API with Google Favicon as fallback
+ * 
+ * @param merchantName - The merchant name
+ * @returns Logo URL or null
+ */
+export function getMerchantLogo(merchantName: string): string | null {
+  const url = getMerchantUrl(merchantName);
+  if (!url) return null;
+  
+  try {
+    const domain = new URL(url).hostname.replace('www.', '');
+    // Use Clearbit Logo API (free, high quality)
+    return `https://logo.clearbit.com/${domain}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get merchant favicon as fallback (smaller but always works)
+ * 
+ * @param merchantName - The merchant name
+ * @returns Favicon URL or null
+ */
+export function getMerchantFavicon(merchantName: string): string | null {
+  const url = getMerchantUrl(merchantName);
+  if (!url) return null;
+  
+  try {
+    const domain = new URL(url).hostname;
+    // Use Google's favicon service (reliable, always returns something)
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get domain from merchant (for display purposes)
+ * 
+ * @param merchantName - The merchant name
+ * @returns Domain string or null
+ */
+export function getMerchantDomain(merchantName: string): string | null {
+  const url = getMerchantUrl(merchantName);
+  if (!url) return null;
+  
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return null;
+  }
+}

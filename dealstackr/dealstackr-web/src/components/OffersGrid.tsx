@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Offer, CrowdsourcedReport } from '@/lib/types';
 import ScoreBadge, { ScoreInfoTooltip } from './ScoreBadge';
 import { calculateDealScore } from '@/lib/offerScoring';
-import { getMerchantUrl } from '@/lib/merchantUrls';
+import { getMerchantUrl, getMerchantLogo, getMerchantFavicon } from '@/lib/merchantUrls';
 
 interface OffersGridProps {
   offers: Offer[];
@@ -219,18 +219,49 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                     <td className="px-4 py-4">
                       {(() => {
                         const merchantUrl = getMerchantUrl(offer.merchant);
+                        const merchantLogo = getMerchantLogo(offer.merchant);
+                        const merchantFavicon = getMerchantFavicon(offer.merchant);
                         // Add dealstackr=report parameter to trigger extension widget
                         const merchantUrlWithTrigger = merchantUrl 
                           ? `${merchantUrl}${merchantUrl.includes('?') ? '&' : '?'}dealstackr=report`
                           : null;
                         return (
                           <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${
+                            {/* Merchant Logo */}
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden ${
                               offer.issuer === 'Chase' 
-                                ? 'bg-blue-500/20 text-blue-400' 
-                                : 'bg-cyan-500/20 text-cyan-400'
+                                ? 'bg-blue-500/20' 
+                                : 'bg-cyan-500/20'
                             }`}>
-                              {offer.merchant.charAt(0)}
+                              {merchantLogo ? (
+                                <img 
+                                  src={merchantLogo}
+                                  alt={offer.merchant}
+                                  className="w-8 h-8 object-contain"
+                                  onError={(e) => {
+                                    // Fallback to favicon on error
+                                    const img = e.target as HTMLImageElement;
+                                    if (merchantFavicon && img.src !== merchantFavicon) {
+                                      img.src = merchantFavicon;
+                                    } else {
+                                      // Hide image and show letter fallback
+                                      img.style.display = 'none';
+                                      const parent = img.parentElement;
+                                      if (parent) {
+                                        parent.innerHTML = `<span class="text-lg font-bold ${
+                                          offer.issuer === 'Chase' ? 'text-blue-400' : 'text-cyan-400'
+                                        }">${offer.merchant.charAt(0)}</span>`;
+                                      }
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <span className={`text-lg font-bold ${
+                                  offer.issuer === 'Chase' ? 'text-blue-400' : 'text-cyan-400'
+                                }`}>
+                                  {offer.merchant.charAt(0)}
+                                </span>
+                              )}
                             </div>
                             {merchantUrlWithTrigger ? (
                               <a 
