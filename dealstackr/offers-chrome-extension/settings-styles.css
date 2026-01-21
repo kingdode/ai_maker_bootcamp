@@ -9,6 +9,25 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Website Button */
+.website-button {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px 10px;
+  margin-right: 5px;
+  transition: transform 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.website-button:hover {
+  transform: scale(1.1);
+}
+
 .settings-panel h3 {
   margin-bottom: 15px;
   color: #667eea;
