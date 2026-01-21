@@ -219,6 +219,10 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                     <td className="px-4 py-4">
                       {(() => {
                         const merchantUrl = getMerchantUrl(offer.merchant);
+                        // Add dealstackr=report parameter to trigger extension widget
+                        const merchantUrlWithTrigger = merchantUrl 
+                          ? `${merchantUrl}${merchantUrl.includes('?') ? '&' : '?'}dealstackr=report`
+                          : null;
                         return (
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold ${
@@ -228,13 +232,13 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                             }`}>
                               {offer.merchant.charAt(0)}
                             </div>
-                            {merchantUrl ? (
+                            {merchantUrlWithTrigger ? (
                               <a 
-                                href={merchantUrl}
+                                href={merchantUrlWithTrigger}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline transition-colors"
-                                title={`Visit ${offer.merchant}`}
+                                title={`Visit ${offer.merchant} - Log deals you find!`}
                               >
                                 {offer.merchant}
                                 <span className="ml-1 text-xs opacity-60">↗</span>

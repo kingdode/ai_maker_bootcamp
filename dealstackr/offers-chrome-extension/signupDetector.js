@@ -97,7 +97,13 @@
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('dealstackr') === 'report') {
       shouldAutoOpen = true;
-      console.log('[DealStackr] Auto-open triggered from dashboard');
+      console.log('[DealStackr] Auto-open triggered from URL parameter');
+      
+      // Also store in session for reliability
+      try {
+        sessionStorage.setItem('dealstackr_show_widget', 'true');
+        sessionStorage.setItem('dealstackr_widget_domain', getDomain());
+      } catch (e) { /* ignore */ }
       
       // Clean up the URL parameter without reloading
       urlParams.delete('dealstackr');
@@ -111,6 +117,19 @@
         // Ignore if we can't modify history
       }
     }
+    
+    // Also check session storage (survives URL cleanup)
+    try {
+      const storedDomain = sessionStorage.getItem('dealstackr_widget_domain');
+      const showWidget = sessionStorage.getItem('dealstackr_show_widget');
+      if (showWidget === 'true' && storedDomain === getDomain()) {
+        shouldAutoOpen = true;
+        console.log('[DealStackr] Auto-open from session storage');
+        // Clear so we don't show again on refresh
+        sessionStorage.removeItem('dealstackr_show_widget');
+        sessionStorage.removeItem('dealstackr_widget_domain');
+      }
+    } catch (e) { /* ignore */ }
   }
   
   // Check immediately
@@ -1667,10 +1686,10 @@
     }, 10000);
 
     // Show confirmation widget only if:
-    // 1. Auto-open is triggered (came from dashboard), OR
+    // 1. Auto-open is triggered (came from dashboard/website), OR
     // 2. There are actual deals/reports for this merchant
     if (shouldAutoOpen) {
-      console.log('[DealStackr] Auto-opening widget from dashboard navigation');
+      console.log('[DealStackr] Auto-opening widget from DealStackr navigation');
       setTimeout(() => {
         createConfirmationWidget();
         // Auto-open the panel after widget is created
@@ -1681,9 +1700,10 @@
             console.log('[DealStackr] Panel auto-opened');
           }
         }, 100);
-      }, 1500); // Slightly faster for auto-open
+      }, 1000); // Faster for auto-open
     } else {
       // Normal flow - check if merchant has deal data first
+      // But be more lenient - also show if we have ANY offers in storage
       setTimeout(async () => {
         console.log('[DealStackr] Checking if should show widget...');
         try {
@@ -1691,8 +1711,13 @@
           const hasDealData = await hasDealDataForMerchant();
           
           if (!hasDealData) {
-            console.log('[DealStackr] No deals for this merchant, not showing widget');
-            return;
+            // Even without deals, show widget if user has offers scanned (encourages reporting)
+            const hasAnyOffers = await hasOffersInStorage();
+            if (!hasAnyOffers) {
+              console.log('[DealStackr] No deals and no offers in storage, not showing widget');
+              return;
+            }
+            console.log('[DealStackr] No deals for merchant but user has offers, showing widget');
           }
           
           // Second check: Did user already confirm recently?
@@ -1708,6 +1733,37 @@
           // Don't show widget on error to avoid annoying users
         }
       }, 3000);
+    }
+  }
+  
+  /**
+   * Check if user has any offers in storage (indicates they're an active user)
+   */
+  async function hasOffersInStorage() {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        if (!chrome?.storage?.local) {
+          resolve({ allDeals: [], dealCohorts: {} });
+          return;
+        }
+        chrome.storage.local.get(['allDeals', 'dealCohorts'], (items) => {
+          resolve(items);
+        });
+      });
+      
+      let count = 0;
+      if (Array.isArray(result.allDeals)) {
+        count += result.allDeals.length;
+      }
+      if (result.dealCohorts && typeof result.dealCohorts === 'object') {
+        Object.values(result.dealCohorts).forEach(cohort => {
+          if (Array.isArray(cohort)) count += cohort.length;
+        });
+      }
+      
+      return count > 0;
+    } catch (error) {
+      return false;
     }
   }
 
