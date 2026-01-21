@@ -1,18 +1,25 @@
-import { createBrowserClient } from '@supabase/ssr';
+import { createBrowserClient, SupabaseClient } from '@supabase/ssr';
+
+let client: SupabaseClient | null = null;
 
 export function createClient() {
+  // Return cached client if available
+  if (client) return client;
+  
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
-  // During build time, these might not be set - provide dummy values
-  // The client won't actually be used during static generation
   if (!supabaseUrl || !supabaseAnonKey) {
-    // Return a dummy client that won't be used
-    return createBrowserClient(
+    console.error('[Supabase Client] Missing environment variables. Auth will not work.');
+    // Return a non-functional client that won't crash but auth won't work
+    // This allows the page to render and show an appropriate error message
+    client = createBrowserClient(
       'https://placeholder.supabase.co',
-      'placeholder-key'
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder'
     );
+    return client;
   }
   
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+  return client;
 }
