@@ -349,12 +349,24 @@ export default function OffersGrid({ offers }: OffersGridProps) {
                             </span>
                           )}
                           
-                          {/* Other Cashback Portal Label */}
+                          {/* Other Cashback Portal Label (not Rakuten, Honey, or Unknown) */}
                           {(offer.crowdsourced.cashbackRate || offer.crowdsourced.cashbackFixed) && 
                            offer.crowdsourced.portal?.toLowerCase() !== 'rakuten' && 
-                           offer.crowdsourced.portal?.toLowerCase() !== 'honey' && (
+                           offer.crowdsourced.portal?.toLowerCase() !== 'honey' && 
+                           offer.crowdsourced.portal?.toLowerCase() !== 'unknown' &&
+                           offer.crowdsourced.portal && (
                             <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-emerald-500 text-white">
-                              {offer.crowdsourced.portal || 'Cashback'} {offer.crowdsourced.cashbackFixed 
+                              {offer.crowdsourced.portal} {offer.crowdsourced.cashbackFixed 
+                                ? `$${offer.crowdsourced.cashbackFixed}` 
+                                : `${offer.crowdsourced.cashbackRate}%`}
+                            </span>
+                          )}
+                          
+                          {/* Unknown/Missing Portal - Default to Rakuten styling */}
+                          {(offer.crowdsourced.cashbackRate || offer.crowdsourced.cashbackFixed) && 
+                           (!offer.crowdsourced.portal || offer.crowdsourced.portal?.toLowerCase() === 'unknown') && (
+                            <span className="inline-block px-2.5 py-0.5 text-xs font-semibold rounded bg-[#eb0029] text-white">
+                              Rakuten {offer.crowdsourced.cashbackFixed 
                                 ? `$${offer.crowdsourced.cashbackFixed}` 
                                 : `${offer.crowdsourced.cashbackRate}%`}
                             </span>

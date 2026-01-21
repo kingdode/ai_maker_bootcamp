@@ -1190,7 +1190,7 @@
     const bodyThanks = widget.querySelector('#ds-body-thanks');
     const thanksCount = widget.querySelector('#ds-thanks-count');
 
-    let selectedPortal = null;
+    let selectedPortal = 'rakuten'; // Default to Rakuten (most common)
     let cashbackType = 'percent'; // 'percent' or 'fixed'
 
     // Toggle panel
@@ -1205,6 +1205,13 @@
     // Option toggle handlers
     checkCashback.addEventListener('change', () => {
       optionCashback.classList.toggle('selected', checkCashback.checked);
+      // Auto-select default portal button when cashback is checked
+      if (checkCashback.checked) {
+        const defaultBtn = portalSelect.querySelector('.ds-widget-portal-btn[data-portal="rakuten"]');
+        if (defaultBtn && !portalSelect.querySelector('.ds-widget-portal-btn.selected')) {
+          defaultBtn.classList.add('selected');
+        }
+      }
     });
 
     checkPromo.addEventListener('change', () => {
