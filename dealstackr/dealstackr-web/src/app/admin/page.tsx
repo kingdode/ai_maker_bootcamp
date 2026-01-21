@@ -630,6 +630,33 @@ export default function AdminPage() {
     }));
   };
 
+  // Auto-recalculate when form values change
+  useEffect(() => {
+    if (promotingReport && reportPromotionForm.targetSpend > 0) {
+      const calc = calculateStackedDeal({
+        originalPrice: reportPromotionForm.targetSpend,
+        signupDiscountPercent: reportPromotionForm.signupPercent || undefined,
+        signupDiscountFixed: reportPromotionForm.signupFixed || undefined,
+        cardOfferBack: reportPromotionForm.cardOfferBack || undefined,
+        cardOfferMinSpend: reportPromotionForm.cardOfferMinSpend || undefined,
+        cashbackPercent: reportPromotionForm.cashbackPercent || undefined,
+        cashbackFixed: reportPromotionForm.cashbackFixed || undefined,
+        portalName: reportPromotionForm.portalName || undefined
+      });
+      setDealCalculation(calc);
+    }
+  }, [
+    promotingReport,
+    reportPromotionForm.targetSpend,
+    reportPromotionForm.signupPercent,
+    reportPromotionForm.signupFixed,
+    reportPromotionForm.cardOfferBack,
+    reportPromotionForm.cardOfferMinSpend,
+    reportPromotionForm.cashbackPercent,
+    reportPromotionForm.cashbackFixed,
+    reportPromotionForm.portalName
+  ]);
+
   // Close report promotion modal
   const closeReportPromotionModal = () => {
     setPromotingReport(null);
