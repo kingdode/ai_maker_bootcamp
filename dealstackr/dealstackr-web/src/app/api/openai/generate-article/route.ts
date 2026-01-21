@@ -79,19 +79,33 @@ export async function POST(request: NextRequest) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: 'You are an expert financial content writer specializing in credit card rewards, cashback deals, and shopping savings strategies. Write comprehensive, well-researched editorial articles that educate consumers about credit card offers and help them maximize their savings. Your writing should be thorough, accurate, engaging, and consumer-friendly. Provide detailed explanations, real-world examples, and actionable advice. Maintain a professional yet approachable tone that builds trust with readers.'
+            content: `You write deal coverage for a credit card rewards site. Your voice is direct, knowledgeable, and slightly irreverent—like a friend who happens to be obsessed with maximizing credit card offers.
+
+CRITICAL RULES TO SOUND HUMAN:
+- Never use these AI clichés: "Whether you're...", "It's worth noting", "In today's...", "If you're looking to...", "This offer is perfect for...", "Don't miss out on...", "Take advantage of..."
+- Never start sentences with "This" repeatedly
+- Never use corporate buzzwords: "leverage", "optimize", "maximize your savings potential"
+- Never hedge with "may", "might", "could potentially"—be direct
+- Avoid exclamation points except rarely for genuine emphasis
+- Don't explain obvious things
+- Use contractions naturally (you'll, it's, don't, won't)
+- Vary sentence length—some short, some longer
+- Include one slightly opinionated take or personal observation
+- Reference the merchant naturally, not robotically
+
+Your tone: Confident expertise without being preachy. You've seen hundreds of these offers. You know which ones matter and which are noise. This one caught your attention—explain why in plain English.`
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.7,
-        max_tokens: 2500
+        temperature: 0.85,
+        max_tokens: 1800
       })
     });
 
@@ -179,76 +193,28 @@ function buildArticlePrompt(data: ArticleRequest): string {
     stackType
   } = data;
 
-  let prompt = `Write a compelling, editorial-style article promoting this credit card offer:
+  let dealDetails = `${merchant} — ${offerValue} via ${issuer}${cardName ? ` ${cardName}` : ''}`;
+  
+  if (minSpend) dealDetails += ` (min $${minSpend})`;
+  if (maxRedemption) dealDetails += ` (max $${maxRedemption})`;
+  if (expiresAt) dealDetails += ` — expires ${expiresAt}`;
+  if (cashback) dealDetails += ` — stacks with ${cashback}`;
+  if (promoCode) dealDetails += ` — code: ${promoCode}`;
+  if (dealScore) dealDetails += ` — DealStackr Score: ${dealScore}/100`;
 
-MERCHANT: ${merchant}
-OFFER: ${offerValue}
-CARD: ${issuer}${cardName ? ` ${cardName}` : ''}`;
+  const prompt = `Write a short deal brief for: ${dealDetails}
 
-  if (minSpend) {
-    prompt += `\nMINIMUM SPEND: $${minSpend}`;
-  }
+Return JSON with these keys:
+- headline: Punchy, specific (50-70 chars). No generic phrases. Include the key number.
+- intro: 2-3 sentences. Get to the point fast. What's the deal, what's the catch, is it good?
+- vendorBackground: 2-3 sentences about ${merchant}. What they sell, price range, who shops there. Be specific—mention actual products or categories if you know them.
+- valueExplanation: 3-4 sentences. Do the math. Example: "Spend $200, get $40 back—that's 20% off a new jacket." Be concrete, not abstract.
+- dealMerits: 2-3 sentences. What makes this particular offer notable? Is the threshold low? The percentage high? Good timing? Or is it just okay?
+- howToRedeem: 3-5 bullet points. Quick, scannable steps. No fluff.
+${cashback || promoCode ? `- stackingNotes: 2-3 sentences on stacking with ${cashback || promoCode}. Be specific about order of operations.` : ''}
+${expiresAt ? `- expirationNote: 1-2 sentences. When it ends and whether that matters.` : ''}
 
-  if (maxRedemption) {
-    prompt += `\nMAXIMUM REDEMPTION: $${maxRedemption}`;
-  }
-
-  if (expiresAt) {
-    prompt += `\nEXPIRES: ${expiresAt}`;
-  }
-
-  if (cashback) {
-    prompt += `\nSTACKABLE WITH: ${cashback}`;
-  }
-
-  if (promoCode) {
-    prompt += `\nPROMO CODE: ${promoCode}`;
-  }
-
-  if (dealScore) {
-    prompt += `\nDEALSTACKR SCORE: ${dealScore}/100`;
-  }
-
-  if (stackType) {
-    prompt += `\nSTACK TYPE: ${stackType}`;
-  }
-
-  prompt += `\n\nWrite a comprehensive, engaging editorial article with the following structure:
-
-1. HEADLINE: Catchy, compelling headline (max 80 characters) that captures the deal's value
-
-2. INTRO: 3-4 sentences introducing the deal, setting the stage for readers. Make it engaging and highlight the key benefit.
-
-3. VENDOR BACKGROUND: 4-6 sentences about what ${merchant} is known for, their product categories, typical price points, and their target customer base. Paint a picture of the shopping experience.
-
-4. VALUE EXPLANATION: 5-7 sentences explaining the savings in detail. Include:
-   - The specific math of the savings
-   - Real-world purchase scenarios
-   - How much a typical shopper might save
-   - Comparison to regular pricing or other offers
-
-5. DEAL MERITS: 4-6 sentences on what makes this deal exceptional. Cover:
-   - Unique aspects of this particular offer
-   - Why now is a good time to take advantage
-   - Who would benefit most from this deal
-   - Any standout features or benefits
-
-6. HOW TO REDEEM: Detailed step-by-step instructions (5-7 bullet points) covering:
-   - Exact steps to activate the offer
-   - Card requirements and enrollment process
-   - Purchase requirements and timelines
-   - How to track and verify the credit/cashback
-   - Best practices for maximizing value
-
-7. STACKING NOTES: ${cashback || promoCode ? '3-5 sentences on how to combine this with other offers. Include specific portal recommendations, timing strategies, and total potential savings when stacked.' : 'Skip if not applicable'}
-
-8. EXPIRATION NOTE: ${expiresAt ? '2-3 sentences about the deadline, urgency, and recommended action timeline.' : 'Skip if not applicable'}
-
-IMPORTANT: Write in a detailed, informative style. This should be a comprehensive guide.
-Target length: 500-700 words total.
-Tone: Professional yet friendly, informative without being salesy, enthusiastic about savings.
-
-Format: Return as JSON with keys: headline, intro, vendorBackground, valueExplanation, dealMerits, howToRedeem, stackingNotes (optional), expirationNote (optional)`;
+Keep total length under 400 words. Write like you're telling a friend about a deal you spotted—not like you're writing ad copy.`;
 
   return prompt;
 }
