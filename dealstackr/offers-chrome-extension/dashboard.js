@@ -2767,17 +2767,33 @@
       showStatus();
       
       const urls = {
-        chase: 'https://www.chase.com/digital/offers?dealstackr_activate=true',
-        amex: 'https://www.americanexpress.com/en-us/benefits/offers?dealstackr_activate=true'
+        // Chase: Use the secure dashboard offers page
+        chase: 'https://secure.chase.com/web/auth/dashboard#/dashboard/merchantOffers/offer-hub',
+        // Amex: Use the Amex Offers page
+        amex: 'https://global.americanexpress.com/offers/eligible'
       };
       
       const url = urls[issuer];
       addLogEntry('info', `Opening ${issuer.charAt(0).toUpperCase() + issuer.slice(1)} offers page...`);
+      addLogEntry('info', 'Please log in if prompted, then the activation will start automatically.');
       
       try {
         // Open the offers page in a new tab
         const tab = await chrome.tabs.create({ url, active: true });
         activeTab = tab.id;
+        
+        // Set session storage flag for auto-activation (will be read by content script)
+        // We need to execute this in the context of the new tab
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: activeTab },
+            func: () => {
+              sessionStorage.setItem('dealstackr_auto_activate', 'true');
+            }
+          });
+        } catch (e) {
+          console.log('[DealStackr] Could not set session storage, will try message instead');
+        }
         
         addLogEntry('info', 'Page opened. Waiting for page to load...');
         updateProgress(10, 'Page loading...');
