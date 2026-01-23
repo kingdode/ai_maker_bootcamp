@@ -95,74 +95,63 @@
       // Wait for page to fully load (Chase uses heavy JS)
       await delay(3000);
       
-      // Log page info for debugging
-      console.log('[DealStackr] Page title:', document.title);
-      console.log('[DealStackr] Looking for Add to Card buttons...');
+      // Step 1: Scroll to load all offers (Chase lazy-loads)
+      sendProgress('info', 'Scrolling to load all offers...');
+      let lastHeight = 0;
+      let scrollAttempts = 0;
       
-      // Chase Merchant Offers page selectors (based on their dashboard structure)
-      // The offers are typically in a grid/list with "Add to card" or "Save offer" buttons
-      let addButtons = [];
+      while (scrollAttempts < 10) {
+        window.scrollTo(0, document.body.scrollHeight);
+        await delay(1500);
+        
+        const newHeight = document.body.scrollHeight;
+        if (newHeight === lastHeight) break;
+        lastHeight = newHeight;
+        scrollAttempts++;
+        console.log('[DealStackr] Scrolled...', scrollAttempts);
+      }
       
-      // Strategy 1: Look for buttons with specific text patterns
-      const allButtons = document.querySelectorAll('button, [role="button"]');
-      console.log('[DealStackr] Found', allButtons.length, 'total buttons on page');
+      // Scroll back to top
+      window.scrollTo(0, 0);
+      await delay(1000);
       
-      addButtons = Array.from(allButtons).filter(btn => {
-        const text = btn.textContent?.toLowerCase().trim() || '';
+      // Step 2: Find all add buttons
+      console.log('[DealStackr] Looking for Add/+ buttons...');
+      
+      const allClickable = document.querySelectorAll('button, [role="button"], a, span[onclick], div[onclick]');
+      
+      let addButtons = Array.from(allClickable).filter(btn => {
+        const text = btn.textContent?.trim() || '';
         const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
         const title = (btn.getAttribute('title') || '').toLowerCase();
+        const svg = btn.querySelector('svg');
         
-        // Check for Chase's various button texts
+        // Multiple detection strategies - including + buttons
         const isAddButton = 
-          text.includes('add to card') ||
-          text.includes('save offer') ||
-          text.includes('add offer') ||
-          text === 'add' ||
-          ariaLabel.includes('add to card') ||
-          ariaLabel.includes('save offer') ||
-          title.includes('add to card');
+          text === '+' ||
+          text === '＋' ||
+          text.toLowerCase() === 'add' ||
+          text.toLowerCase().includes('add to card') ||
+          text.toLowerCase().includes('save offer') ||
+          ariaLabel.includes('add') ||
+          title.includes('add') ||
+          (svg && text.length < 5); // Small button with icon (likely + icon)
         
-        // Must be visible and enabled
+        // Must be visible and not already clicked
         const isVisible = btn.offsetParent !== null;
-        const isEnabled = !btn.disabled && !btn.classList.contains('disabled');
+        const notAdded = !text.toLowerCase().includes('added') && 
+                         !btn.classList.contains('added') &&
+                         !btn.disabled;
         
-        return isAddButton && isVisible && isEnabled;
+        return isAddButton && isVisible && notAdded;
       });
       
-      console.log('[DealStackr] Found', addButtons.length, 'Add to Card buttons');
-      
-      // Strategy 2: Look for Chase's specific component patterns
-      if (addButtons.length === 0) {
-        // Chase uses mds (Modern Design System) components
-        const mdsButtons = document.querySelectorAll('[class*="mds-button"], [class*="offer"] button, [class*="Offer"] button');
-        addButtons = Array.from(mdsButtons).filter(btn => {
-          const text = btn.textContent?.toLowerCase() || '';
-          return (text.includes('add') || text.includes('save')) && 
-                 btn.offsetParent !== null && 
-                 !btn.disabled;
-        });
-        console.log('[DealStackr] Strategy 2 found', addButtons.length, 'buttons');
-      }
-      
-      // Strategy 3: Look for any clickable element with add/save text
-      if (addButtons.length === 0) {
-        const allClickable = document.querySelectorAll('button, a, [role="button"], [onclick]');
-        addButtons = Array.from(allClickable).filter(el => {
-          const text = el.textContent?.toLowerCase() || '';
-          return text.match(/\b(add|save)\b.*\b(card|offer)\b/i) && 
-                 el.offsetParent !== null;
-        });
-        console.log('[DealStackr] Strategy 3 found', addButtons.length, 'elements');
-      }
+      console.log('[DealStackr] Found', addButtons.length, 'add buttons');
 
       if (addButtons.length === 0) {
-        sendProgress('warning', 'No "Add to Card" buttons found on this page.');
+        sendProgress('warning', 'No "Add to Card" or "+" buttons found on this page.');
         sendProgress('info', 'Make sure you are logged in and viewing your offers.');
         sendProgress('info', 'Navigate to: Chase Dashboard → Credit Card → Offers');
-        
-        // Debug: Log what's on the page
-        const pageText = document.body?.innerText?.substring(0, 500) || '';
-        console.log('[DealStackr] Page preview:', pageText);
         return;
       }
 
@@ -181,7 +170,7 @@
           const merchantEl = card?.querySelector('h2, h3, h4, [class*="merchant"], [class*="name"], [class*="title"], strong');
           const merchantName = merchantEl?.textContent?.trim() || `Offer ${i + 1}`;
 
-          // Check if already added (button might say "Added" or be disabled now)
+          // Check if already added
           const buttonText = button.textContent?.toLowerCase() || '';
           if (buttonText.includes('added') || buttonText.includes('saved')) {
             alreadyAdded++;
@@ -190,7 +179,7 @@
           }
 
           await scrollToElement(button);
-          await delay(300);
+          await delay(400);
           
           // Click the button
           console.log('[DealStackr] Clicking button for:', merchantName);
@@ -200,7 +189,7 @@
           sendProgress('success', `✓ Added: ${merchantName}`);
           
           // Wait between clicks to avoid rate limiting
-          await delay(1000 + Math.random() * 500);
+          await delay(1200 + Math.random() * 500);
           
           // Update progress
           const progress = Math.round(((i + 1) / addButtons.length) * 100);
