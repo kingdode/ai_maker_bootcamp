@@ -2706,15 +2706,187 @@
     console.log('[DealStackr] Sync button initialized successfully');
   }
 
+  // ============================================
+  // AUTO-ACTIVATE OFFERS
+  // ============================================
+  
+  function initAutoActivate() {
+    const activateChaseBtn = document.getElementById('activateChaseBtn');
+    const activateAmexBtn = document.getElementById('activateAmexBtn');
+    const activationStatus = document.getElementById('activationStatus');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const activationLog = document.getElementById('activationLog');
+    
+    if (!activateChaseBtn || !activateAmexBtn) {
+      console.warn('[DealStackr] Auto-activate buttons not found');
+      return;
+    }
+    
+    let activeTab = null;
+    
+    // Add log entry
+    function addLogEntry(type, message) {
+      if (!activationLog) return;
+      
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = message;
+      activationLog.appendChild(entry);
+      activationLog.scrollTop = activationLog.scrollHeight;
+    }
+    
+    // Clear log
+    function clearLog() {
+      if (activationLog) {
+        activationLog.innerHTML = '';
+      }
+    }
+    
+    // Update progress
+    function updateProgress(percent, text) {
+      if (progressFill) {
+        progressFill.style.width = `${percent}%`;
+      }
+      if (progressText) {
+        progressText.textContent = text;
+      }
+    }
+    
+    // Show activation status
+    function showStatus() {
+      if (activationStatus) {
+        activationStatus.style.display = 'block';
+      }
+      clearLog();
+      updateProgress(0, 'Starting...');
+    }
+    
+    // Start activation for an issuer
+    async function startActivation(issuer) {
+      showStatus();
+      
+      const urls = {
+        chase: 'https://www.chase.com/digital/offers?dealstackr_activate=true',
+        amex: 'https://www.americanexpress.com/en-us/benefits/offers?dealstackr_activate=true'
+      };
+      
+      const url = urls[issuer];
+      addLogEntry('info', `Opening ${issuer.charAt(0).toUpperCase() + issuer.slice(1)} offers page...`);
+      
+      try {
+        // Open the offers page in a new tab
+        const tab = await chrome.tabs.create({ url, active: true });
+        activeTab = tab.id;
+        
+        addLogEntry('info', 'Page opened. Waiting for page to load...');
+        updateProgress(10, 'Page loading...');
+        
+        // Wait for tab to finish loading, then send activation message
+        const checkTabLoaded = () => {
+          return new Promise((resolve) => {
+            const listener = (tabId, changeInfo) => {
+              if (tabId === activeTab && changeInfo.status === 'complete') {
+                chrome.tabs.onUpdated.removeListener(listener);
+                resolve();
+              }
+            };
+            chrome.tabs.onUpdated.addListener(listener);
+            
+            // Timeout after 30 seconds
+            setTimeout(() => {
+              chrome.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }, 30000);
+          });
+        };
+        
+        await checkTabLoaded();
+        updateProgress(20, 'Page loaded. Starting activation...');
+        
+        // Give the page a moment to fully render
+        await new Promise(r => setTimeout(r, 3000));
+        
+        // Send message to start activation
+        try {
+          await chrome.tabs.sendMessage(activeTab, { action: 'startActivation' });
+          addLogEntry('info', 'Activation started...');
+        } catch (e) {
+          addLogEntry('warning', 'Could not start automatic activation. Please click "Add to Card" buttons manually.');
+          addLogEntry('info', 'The content script may need to be refreshed. Try reloading the page.');
+        }
+        
+      } catch (error) {
+        addLogEntry('error', `Error: ${error.message}`);
+        updateProgress(0, 'Failed');
+      }
+    }
+    
+    // Listen for progress messages from content script
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.action !== 'activationProgress') return;
+      
+      const { type, message: text, data } = message;
+      
+      switch (type) {
+        case 'info':
+          addLogEntry('info', text);
+          break;
+        case 'success':
+          addLogEntry('success', text);
+          break;
+        case 'error':
+          addLogEntry('error', text);
+          break;
+        case 'warning':
+          addLogEntry('warning', text);
+          break;
+        case 'progress':
+          if (data.progress !== undefined) {
+            updateProgress(data.progress, `${data.current}/${data.total} offers processed`);
+          }
+          break;
+        case 'complete':
+          addLogEntry('success', text);
+          updateProgress(100, 'Complete!');
+          
+          // Re-enable buttons
+          activateChaseBtn.disabled = false;
+          activateAmexBtn.disabled = false;
+          break;
+      }
+      
+      sendResponse({ received: true });
+      return true;
+    });
+    
+    // Button click handlers
+    activateChaseBtn.addEventListener('click', async () => {
+      activateChaseBtn.disabled = true;
+      activateAmexBtn.disabled = true;
+      await startActivation('chase');
+    });
+    
+    activateAmexBtn.addEventListener('click', async () => {
+      activateChaseBtn.disabled = true;
+      activateAmexBtn.disabled = true;
+      await startActivation('amex');
+    });
+    
+    console.log('[DealStackr] Auto-activate initialized');
+  }
+
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       init();
       initSyncButton();
+      initAutoActivate();
     });
   } else {
     init();
     initSyncButton();
+    initAutoActivate();
   }
 
 })();

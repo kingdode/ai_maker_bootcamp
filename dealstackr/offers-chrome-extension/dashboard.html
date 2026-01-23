@@ -38,6 +38,39 @@
       </div>
     </div>
 
+    <!-- Auto-Activate Offers Section -->
+    <div class="auto-activate-section">
+      <div class="auto-activate-header">
+        <h2>⚡ Auto-Activate Offers</h2>
+        <p class="auto-activate-subtitle">Automatically add all available offers to your cards with one click</p>
+      </div>
+      <div class="auto-activate-buttons">
+        <button id="activateChaseBtn" class="activate-btn chase-btn">
+          <span class="btn-icon">🏦</span>
+          <span class="btn-text">
+            <span class="btn-title">Activate Chase Offers</span>
+            <span class="btn-desc">Opens Chase and adds all offers</span>
+          </span>
+        </button>
+        <button id="activateAmexBtn" class="activate-btn amex-btn">
+          <span class="btn-icon">💳</span>
+          <span class="btn-text">
+            <span class="btn-title">Activate Amex Offers</span>
+            <span class="btn-desc">Opens Amex and adds all offers</span>
+          </span>
+        </button>
+      </div>
+      <div id="activationStatus" class="activation-status" style="display: none;">
+        <div class="activation-progress">
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <span id="progressText" class="progress-text">Starting...</span>
+        </div>
+        <div id="activationLog" class="activation-log"></div>
+      </div>
+    </div>
+
     <!-- Filters and Sort Controls -->
     <div class="controls-bar">
       <div class="filters-section">

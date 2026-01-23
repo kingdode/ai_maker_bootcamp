@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "DealStackr",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "Scan and stack credit card offers from Chase and American Express with cashback portal and signup offer detection",
   "permissions": [
     "activeTab",
     "storage",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
     "https://*/*",
@@ -25,7 +26,7 @@
         "https://*.chase.com/*",
         "https://*.americanexpress.com/*"
       ],
-      "js": ["contentScript.js"],
+      "js": ["contentScript.js", "offerActivator.js"],
       "run_at": "document_idle"
     },
     {
