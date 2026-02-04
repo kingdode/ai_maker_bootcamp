@@ -1,3 +1,18 @@
 
 # Large files
 *.zip
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.env
+
+# Credentials and secrets
+credentials.json
+secrets.json
+*.pem
+*.key
+.credentials/

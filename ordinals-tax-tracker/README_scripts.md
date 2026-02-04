@@ -10,14 +10,16 @@ You can provide your Ordiscan API key in one of two ways:
 
 **Option A: Environment Variable (Recommended)**
 ```bash
-export ORDISCAN_API_KEY="656d2019-70ad-471b-bf15-0fb272b392dc"
+export ORDISCAN_API_KEY="your-api-key-here"
 ```
 
 **Option B: .env File**
 Create a `.env` file in the project root:
 ```
-ORDISCAN_API_KEY=656d2019-70ad-471b-bf15-0fb272b392dc
+ORDISCAN_API_KEY=your-api-key-here
 ```
+
+> ⚠️ **Security Note:** Never commit your actual API key to version control. Get your API key from [Ordiscan](https://ordiscan.com).
 
 ### 2. Activate Virtual Environment
 
