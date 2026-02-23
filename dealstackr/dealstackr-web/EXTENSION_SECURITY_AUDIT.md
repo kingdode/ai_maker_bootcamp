@@ -21,7 +21,7 @@
 **Location:** `dashboard.js` lines 2531, 2561
 
 ```javascript
-'x-sync-api-key': '59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61'
+'x-sync-api-key': '<hardcoded-key-redacted>'
 ```
 
 **Risk:** 🔴 **CRITICAL**
@@ -39,7 +39,7 @@
 **Why This Is Bad:**
 ```javascript
 // Current (INSECURE):
-'x-sync-api-key': '59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61'
+'x-sync-api-key': '<hardcoded-key-redacted>'
 
 // Anyone can see this by:
 1. Installing your extension

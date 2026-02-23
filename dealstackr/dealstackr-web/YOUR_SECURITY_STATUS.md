@@ -113,7 +113,7 @@ nano .env.local
 
 Add this line at the end:
 ```
-SYNC_API_KEY=8f7a3c9e2b5d1a4f6e8c9b2d5a7f3e1c4b6a8d2f5e9c1b3a7d4f6e8c2a5d7b9f
+SYNC_API_KEY=<paste-your-generated-key-here>
 ```
 
 Save and exit (Ctrl+X, then Y, then Enter)

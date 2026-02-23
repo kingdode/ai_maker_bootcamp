@@ -1,3 +1,9 @@
 
 # Large files
 *.zip
+
+# Environment and secrets
+.env
+.env.local
+.env.*
+*.env

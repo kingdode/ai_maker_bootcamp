@@ -11,7 +11,7 @@
 ### Environment Variables
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon/public key
-- [ ] `ADMIN_EMAIL` - Your admin email (victorperez0313@gmail.com)
+- [ ] `ADMIN_EMAIL` - Your admin email (e.g. your-email@example.com)
 - [ ] `SYNC_API_KEY` - **NEW!** Chrome extension API key
 - [ ] `OPENAI_API_KEY` - OpenAI API key (optional, for AI features)
 - [ ] `NEXT_PUBLIC_APP_URL` - Your production domain (e.g., https://dealstackr.up.railway.app)
@@ -37,7 +37,7 @@
 
 ```
 Variable: SYNC_API_KEY
-Value: 59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61
+Value: <generate-with-openssl-rand-hex-32>
 ```
 
 ### 2. Commit and Push Code
@@ -89,7 +89,7 @@ curl -X POST https://your-domain.railway.app/api/offers \
 # Should WORK (correct key)
 curl -X POST https://your-domain.railway.app/api/offers \
   -H "Content-Type: application/json" \
-  -H "X-Sync-API-Key: 59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61" \
+  -H "X-Sync-API-Key: YOUR_SYNC_API_KEY" \
   -d '{"offers": [...]}'
 ```
 

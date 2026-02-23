@@ -38,7 +38,7 @@ curl -X POST https://YOUR_DOMAIN.railway.app/api/offers \
 ```bash
 curl -X POST https://YOUR_DOMAIN.railway.app/api/offers \
   -H "Content-Type: application/json" \
-  -H "X-Sync-API-Key: 59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61" \
+  -H "X-Sync-API-Key: YOUR_SYNC_API_KEY" \
   -d '{"offers": [{"id": "prod-test-001", "merchant": "Walmart", "offer_value": "$15 back on $75", "issuer": "Amex", "card_name": "Blue Cash", "channel": "Both", "scanned_at": "2026-01-20T20:00:00Z", "expires_at": "2026-02-20T00:00:00Z"}]}'
 ```
 
@@ -74,7 +74,7 @@ This proves database persistence works!
 
 **Browser test:**
 1. Go to: https://YOUR_DOMAIN.railway.app/admin/login
-2. Login with: `victorperez0313@gmail.com`
+2. Login with your admin email
 3. Should see admin dashboard ✅
 
 ---
@@ -122,7 +122,7 @@ If this fails, check:
 
 **Solution:**
 1. Railway → Variables
-2. Add: `SYNC_API_KEY = 59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61`
+2. Add: `SYNC_API_KEY = <your-generated-key>`
 3. Redeploy
 
 ### Extension Can't Connect
@@ -166,5 +166,4 @@ https://app.supabase.com/project/tqrhrbebgucsyfbdirgi/editor
 ---
 
 **Last Updated:** 2026-01-20  
-**API Key (for testing):** 59ed8d8b457b51d7a56ff2364997c68e5708f5126a630f74c9b6971696c5dd61  
-**Admin Email:** victorperez0313@gmail.com
+**Note:** Use your SYNC_API_KEY from Railway variables for testing. Never commit real keys.
